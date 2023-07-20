@@ -19,7 +19,7 @@ jobs:
       - name: Build, tag, and push image to Amazon ECR
         id: build-image
         env:
-          DOCKER_REGISTRY: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_REGISTRY: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKER_REPOSITORY: avidity-app
           IMAGE_TAG: ${{ github.sha }}
         run: |
