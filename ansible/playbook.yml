@@ -1,5 +1,5 @@
 ---
-- name: Provision Web Application Host
+- name: Deploy Web Application
   hosts: webapp
   become: yes
   gather_facts: yes
