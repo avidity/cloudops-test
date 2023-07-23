@@ -6,4 +6,4 @@ chmod 0600 ~/.ssh/aws.pem
 
 ls -al ~/.ssh/
 
-ansible-playbook -i ansible/inventories/production ansible/playbook.yml -c paramiko -vvvv
+ansible-playbook -i ansible/inventories/production ansible/playbook.yml -vvvv
