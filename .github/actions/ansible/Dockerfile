@@ -11,6 +11,7 @@ RUN apk update \
   && rm -rf /var/cache/apk/* 
 
 RUN pip3 install --upgrade pip \
+  && pip3 install docker \
   && pip3 install ansible==${ANSIBLE_VERSION} \
   && pip3 install ansible-lint==${ANSIBLE_LINT_VERSION}
 
