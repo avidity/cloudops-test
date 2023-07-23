@@ -1,0 +1,22 @@
+---
+- name: Check if the app Docker container is running
+  become: yes
+  command: docker ps -q -f name={{ app_name }}
+  register: app_container_running
+  ignore_errors: yes
+
+- name: Stop and remove the app Docker container if running
+  become: yes
+  command: docker stop {{ app_name }} && docker rm {{ app_name }}
+  when: app_container_running.rc == 0
+  ignore_errors: yes
+
+- name: Build and Run the App Docker container
+  become: yes
+  docker_container:
+    name: "{{ app_name }}"
+    image: "{{ app_image_name }}:{{ app_image_tag }}"
+    command: sh -c "python3 server.py"
+    state: started
+    ports:
+      - "{{ app_bind_address }}:{{ app_bind_port }}:{{ app_bind_port }}"

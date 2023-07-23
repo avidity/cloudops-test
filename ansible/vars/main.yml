@@ -8,8 +8,9 @@ redis_version: "5:6.0.16-1ubuntu1"
 ### App Configurations
 nginx_app_domain: "_"
 nginx_app_port: 8000
-app_git_tag: "latest"
-app_image_name: "app"
+app_git_tag: "22789ec43e45f8907a5568877b0e9e7fc6f0517e"
+app_name: "avidity-app"
+app_image_name: "ratuliit42/{{ app_name }}"
 app_image_tag: "{{ app_git_tag | default('latest') }}"
 app_bind_address: 127.0.0.1
 app_bind_port: 8000

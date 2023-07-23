@@ -21,7 +21,7 @@
 - name: Configure App Site Nginx
   template:
     src: app-site.conf.j2
-    dest: /etc/nginx/sites-enabled/app-site.conf
+    dest: /etc/nginx/sites-enabled/default
     owner: root
     group: root
     mode: "0644"

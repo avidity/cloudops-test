@@ -23,8 +23,8 @@ jobs:
           DOCKER_REPOSITORY: avidity-app
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build -t $DOCKER_REGISTRY/$DOCKER_REPOSITORY:$IMAGE_TAG .
-          docker push $DOCKER_REGISTRY/$DOCKER_REPOSITORY:$IMAGE_TAG
+          docker build -t $DOCKER_REGISTRY/$DOCKER_REPOSITORY:$IMAGE_TAG -t $DOCKER_REGISTRY/$DOCKER_REPOSITORY:latest .
+          docker push $DOCKER_REGISTRY/$DOCKER_REPOSITORY --all-tags
           echo "name=image::$DOCKER_REGISTRY/$DOCKER_REPOSITORY:$IMAGE_TAG" >> "$GITHUB_OUTPUT"
   deploy:
     runs-on: ubuntu-latest
@@ -34,3 +34,4 @@ jobs:
     - uses: ./.github/actions/ansible
       env:
         APPSERVER_SSH_KEY: ${{ secrets.APPSERVER_SSH_KEY }}
+        IMAGE_TAG: ${{ github.sha }}
