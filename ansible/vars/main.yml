@@ -1,0 +1,15 @@
+---
+### Package Versions
+nginx_version: "1.18.0-6ubuntu14.4"
+docker_version: "5:23.0.0-1~ubuntu.22.04~jammy"
+postgres_version: "13"
+redis_version: "5:6.0.16-1ubuntu1"
+
+### App Configurations
+nginx_app_domain: "_"
+nginx_app_port: 8000
+app_git_tag: "latest"
+app_image_name: "app"
+app_image_tag: "{{ app_git_tag | default('latest') }}"
+app_bind_address: 127.0.0.1
+app_bind_port: 8000

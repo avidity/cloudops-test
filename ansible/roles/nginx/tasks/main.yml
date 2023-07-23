@@ -1,0 +1,28 @@
+---
+- name: Install Nginx
+  apt:
+    name: nginx={{ nginx_version }}
+    state: present
+    update_cache: true
+
+- name: Validating if the package is installed or not
+  debug: 
+    msg: "nginx{{ nginx_version }} is installed"
+
+- name: Configure Nginx
+  template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/nginx.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: restart nginx
+
+- name: Configure App Site Nginx
+  template:
+    src: app-site.conf.j2
+    dest: /etc/nginx/sites-enabled/app-site.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: reload nginx

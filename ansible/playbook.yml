@@ -1,0 +1,14 @@
+---
+- name: Provision Web Application Host
+  hosts: webapp
+  become: yes
+  gather_facts: yes
+  vars_files: 
+    - vars/main.yml
+
+  roles:
+    - common
+    - nginx
+    - docker
+    - redis
+    - postgresql

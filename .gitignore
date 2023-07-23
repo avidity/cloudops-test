@@ -1,0 +1,7 @@
+*.original
+*.tmp
+*.bkp
+*.retry
+*.*~
+
+.vscode
