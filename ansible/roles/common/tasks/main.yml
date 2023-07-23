@@ -11,6 +11,7 @@
     - git
     - unzip
     - python3-pip
+    - python3-docker
     - apt-transport-https
     - ca-certificates
     - curl
