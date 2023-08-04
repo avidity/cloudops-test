@@ -1,0 +1,59 @@
+---
+- name: Provision web application host
+  hosts: webserver
+  become: yes
+
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+      become: yes
+
+    - name: Install required packages
+      apt:
+        name: "{{ item }}"
+        state: present
+      become: yes
+      with_items:
+        - postgresql-13
+        - redis-server
+        - nginx
+
+    - name: Copy custom PostgreSQL configuration
+      template:
+        src: files/pg_custom.conf
+        dest: /etc/postgresql/13/main/postgresql.conf
+        owner: postgres
+        group: postgres
+        mode: '0644'
+
+    - name: Copy custom Redis configuration
+      template:
+        src: files/redis_custom.conf
+        dest: /etc/redis/redis.conf
+        owner: redis
+        group: redis
+        mode: '0644'
+
+    - name: Copy custom Nginx configuration
+      template:
+        src: files/nginx_custom.conf
+        dest: /etc/nginx/sites-available/default
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Enable Nginx configuration
+      file:
+        src: /etc/nginx/sites-available/default
+        dest: /etc/nginx/sites-enabled/default
+        state: link
+
+    - name: Restart services
+      service:
+        name: "{{ item }}"
+        state: restarted
+      with_items:
+        - postgresql
+        - redis-server
+        - nginx

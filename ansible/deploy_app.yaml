@@ -1,0 +1,24 @@
+---
+- name: Deploy Application
+  hosts: webserver
+  become: yes
+
+  tasks:
+    - name: Update code from GitHub repository
+      git:
+        repo: https://github.com/avidity/cloudops-test.git
+        dest: /app
+        version: main 
+      register: git_output
+
+    - name: Install required dependencies for Python
+      # Add tasks here to install required dependencies for your application
+
+    - name: Run database migrations for Django
+      command: /app/server.py migrate
+      args:
+        chdir: /app
+      when: git_output.changed and 'django' in "application_framework"
+
+    - name: Restart your application service (e.g., restart web server)
+      # Add tasks here to restart your application service
