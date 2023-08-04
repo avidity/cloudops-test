@@ -1,0 +1,27 @@
+name: Deploy Application
+
+on:
+  push:
+    branches:
+      - feature1.0 
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up Python for Ansible
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'  # Change this based on your Ansible version requirements
+
+      - name: Install Ansible
+        run: pip install ansible
+
+      - name: Deploy application with Ansible
+        run: ansible-playbook /ansible/deploy_app.yml
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: false  # Disable host key checking for non-interactive mode
