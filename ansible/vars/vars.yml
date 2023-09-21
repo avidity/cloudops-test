@@ -1,0 +1,14 @@
+
+# configuration variables
+
+aws_key_name: "key-pair-name"
+aws_region: "Us-east-1"
+aws_ami_id: "ami-06db4d78cb1d3bbf9" 
+aws_security_group: "security-group"
+aws_subnet_id: "subnet-id"
+aws_instance_type: "t2.large"
+postgresql_version:  16.16.0
+redis_version: 7.2
+nginx_version: 1.25
+docker_version: 24.0
+

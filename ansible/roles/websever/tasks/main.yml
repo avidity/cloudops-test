@@ -1,0 +1,62 @@
+---
+- name: Provision AWS EC2 Instance
+  hosts: localhost
+  gather_facts: False
+  tasks:
+    - name: Launch an EC2 instance
+      ec2:
+        key_name: "{{ aws_key_name }}"
+        region: "{{ aws_region }}"
+        image: "{{ aws_ami_id }}"
+        instance_type: "{{ aws_instance_type }}"
+        group: "{{ aws_security_group }}"
+        vpc_subnet_id: "{{ aws_subnet_id }}"
+        assign_public_ip: yes
+        count: 1
+        instance_tags:
+          Name: web-server
+      register: ec2
+
+    - name: Wait for SSH to be available
+      wait_for:
+        host: "{{ ec2.instances[0].public_dns_name }}"
+        port: 22
+        delay: 60
+        timeout: 320
+        state: started
+
+- name: Configure the instance
+  hosts: ec2.instances[0].public_dns_name
+  remote_user: ec2-user
+  gather_facts: True
+  tasks:
+    - name: Update package cache and install required packages
+      become: yes
+      apt:
+        name:
+          - "redis-{{ redis_version }}"
+          - "postgresql-{{ postgresql_version }}"
+          - "nginx-{{ nginx_version }}"
+        state: present
+
+    - name: Open ports for Redis, PostgreSQL, and Nginx
+      become: yes
+      firewalld:
+        service: "{{ item }}"
+        permanent: yes
+        state: enabled
+      with_items:
+        - redis
+        - postgresql
+        - nginx
+
+    - name: Start and enable services
+      become: yes
+      service:
+        name: "{{ item }}"
+        enabled: yes
+        state: started
+      with_items:
+        - redis
+        - postgresql
+        - nginx

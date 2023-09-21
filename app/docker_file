@@ -1,0 +1,13 @@
+FROM python:3.8
+
+#working directory in the container
+WORKDIR /app
+
+# Copy Python script into the container
+COPY script.py .
+
+# Expose port HTTP server will run on
+EXPOSE 8000
+
+# Run Python script
+CMD ["python3", "server.py"]

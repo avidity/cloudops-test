@@ -1,0 +1,51 @@
+---
+- name: Install Docker
+  apt:
+    name: "docker-{{ docker_version }}"
+    state: present
+
+- name: Docker service enabled and running
+  service:
+    name: docker
+    state: started
+    enabled: yes
+
+- name: Pull Docker image
+  docker_image:
+    name: "{{ docker_registry }}/docker-web-app:latest"
+    state: present
+  environment:
+    DOCKER_USERNAME: "{{ docker_registry_username }}"
+    DOCKER_PASSWORD: "{{ docker_registry_password }}"
+    
+- name: Run Docker container
+  docker_container:
+    name: web_app_container
+    image: "{{ docker_registry }}/docker-web-app:latest"
+    state: started 
+    ports:
+      - "127.0.0.1:8000:8000"
+
+    # Ensure the container restarts if it stops 
+    restart_policy: always  
+  environment:
+    DJANGO_SECRET_KEY: "{{ django_secret_key }}"  
+
+- name: Wait for Application to Start
+  wait_for:
+    host: 127.0.0.1
+    port: 8000
+    timeout: 300  
+
+- name: Application Health Check
+  uri:
+    url: "http://127.0.0.1:8000"
+    method: GET
+    return_content: yes
+  register: app_health
+  failed_when: app_health.status != 200
+
+- name: Handle Application Health Issues
+  fail:
+    msg: "Application is not responding as expected (HTTP status code: {{ app_health.status }})"
+  when: app_health.failed

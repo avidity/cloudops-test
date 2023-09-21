@@ -1,0 +1,9 @@
+---
+- name: Deploy Web Application
+  hosts: localhost
+  become: true
+  roles:
+    - webserver
+    - docker
+  
+    

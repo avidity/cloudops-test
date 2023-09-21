@@ -1,0 +1,74 @@
+name: Deploy Web Application
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build_and_test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      # setting up python
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.8
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # setting up migrations to manage changes to a database schema
+      - name: Run migrations
+        run: python manage.py migrate
+
+      - name: Run tests
+        run: python manage.py test
+
+
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      # provisioning host and running playbook with necessary dependencies 
+      - name: Provision EC2 Instance
+        run: |
+          ansible-playbook -i localhost, -e aws_key_name="{{ aws_key_name }}" -e aws_region="{{ aws_region }}" -e aws_ami_id="{{ aws_ami_id }}" -e aws_instance_type="{{ aws_instance_type }}" -e aws_security_group="{{ aws_security_group }}" -e aws_subnet_id="{{ aws_subnet_id }}" provision.yml
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+
+      # deploying docker application
+      - name: Application Deployment
+        run: |
+          # Add Docker-related steps here
+          docker login -u ${{ secrets.DOCKER_REGISTRY_USERNAME }} -p ${{ secrets.DOCKER_REGISTRY_PASSWORD }}
+          docker pull docker-web-app:latest
+          docker run -d -p 8000:8000 docker-web-app:latest
+          
+      - name: Wait for Application to Start
+        run: |
+          until $(curl --output /dev/null --silent --head --fail http://127.0.0.1:8000); do
+            echo "Waiting for the application to start..."
+            sleep 5
+          done
+
+      - name: Application Health Check
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8000)
+          if [ "$response" -ne 200 ]; then
+            echo "Application is not responding as expected (HTTP status code: $response)"
+            exit 1
+          fi
+
+  
