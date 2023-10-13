@@ -1,0 +1,37 @@
+name: Deploy Web App
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Docker
+      uses: actions/setup-docker@v2
+
+    - name: Build and push Docker image
+      run: |
+        docker build -t your-docker-username/web-app:${{ github.sha }} .
+        docker push your-docker-username/web-app:${{ github.sha }}
+      env:
+        DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+        DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+
+    - name: Debian host deployment
+      run: |
+        cd terraform/hosts
+        terraform init
+        terraform apply -auto-approve
+
+    - name: webapp deployment
+      run: |
+        cd terraform/app
+        terraform init
+        terraform apply -auto-approve        
