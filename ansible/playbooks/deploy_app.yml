@@ -1,0 +1,6 @@
+---
+- name: Deploy Web Application Updates
+  hosts: localhost
+  become: true
+  roles:
+    - app

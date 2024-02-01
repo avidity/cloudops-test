@@ -1,0 +1,28 @@
+---
+- name: Install required packages
+  apt:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - postgresql-13
+    - redis-server
+    - nginx
+
+- name: Copy custom configurations
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+  loop:
+    - { src: "templates/postgresql.conf.j2", dest: "/etc/postgresql/13/main/postgresql.conf" }
+    - { src: "templates/redis.conf.j2", dest: "/etc/redis/redis.conf" }
+    - { src: "templates/nginx.conf.j2", dest: "/etc/nginx/nginx.conf" }
+
+- name: Enable and start services
+  systemd:
+    name: "{{ item }}"
+    state: started
+    enabled: true
+  loop:
+    - postgresql
+    - redis
+    - nginx
