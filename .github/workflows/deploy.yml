@@ -1,4 +1,4 @@
-name: Deploy on Code Change
+name: Deploy Web Application
 
 on:
   push:
@@ -24,5 +24,5 @@ jobs:
         ansible-galaxy collection install community.docker
         ansible-galaxy install community.general
 
-    - name: Deploy Application
-      run: ansible-playbook -i inventory/ ansible/playbooks/deploy_app.yml
+    - name: Run Ansible playbook for deployment
+      run: ansible-playbook -i inventories/production/ ansible/playbooks/deploy_app.yml

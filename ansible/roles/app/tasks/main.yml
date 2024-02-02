@@ -12,5 +12,9 @@
     restart_policy: always
     ports:
       - "127.0.0.1:8000:8000"
+
+- name: Run database migrations
+  command: docker exec -it app_container python manage.py migrate
+
   vars:
-    docker_image: "your_docker_registry/your_repo:latest"
+    docker_image: "docker_registry/repo:latest"
