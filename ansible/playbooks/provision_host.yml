@@ -1,0 +1,6 @@
+---
+- name: Provision Host for Web Application
+  hosts: all
+  become: true
+  roles:
+    - common

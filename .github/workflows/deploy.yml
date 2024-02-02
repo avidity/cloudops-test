@@ -1,0 +1,28 @@
+name: Deploy Web Application
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.x
+
+    - name: Install dependencies
+      run: |
+        pip install ansible
+        ansible-galaxy collection install community.docker
+        ansible-galaxy install community.general
+
+    - name: Run Ansible playbook for deployment
+      run: ansible-playbook -i inventories/production/ ansible/playbooks/deploy_app.yml

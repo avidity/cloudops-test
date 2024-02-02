@@ -1,0 +1,4 @@
+---
+postgresql_version: 13
+redis_version: 6
+nginx_version: 1.10

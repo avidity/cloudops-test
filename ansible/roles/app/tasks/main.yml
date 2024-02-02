@@ -1,0 +1,20 @@
+---
+- name: Pull the latest code
+  git:
+    repo: https://github.com/avidity/cloudops-test
+    dest: /opt/app
+
+- name: Build and run Docker container
+  docker_container:
+    name: web_app
+    image: "{{ docker_image }}"
+    state: started
+    restart_policy: always
+    ports:
+      - "127.0.0.1:8000:8000"
+
+- name: Run database migrations
+  command: docker exec -it app_container python manage.py migrate
+
+  vars:
+    docker_image: "docker_registry/repo:latest"

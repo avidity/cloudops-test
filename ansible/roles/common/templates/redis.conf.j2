@@ -1,0 +1,17 @@
+# redis.conf.j2
+
+# Use 'bind' to bind to a specific IP address
+bind {{ redis_bind_address | default('127.0.0.1') }}
+
+# Set the port to listen on
+port {{ redis_port | default(6379) }}
+
+# Set the logfile and log level
+logfile {{ redis_log_file | default('/var/log/redis/redis-server.log') }}
+loglevel {{ redis_log_level | default('notice') }}
+
+# Set the database directory
+dir {{ redis_data_dir | default('/var/lib/redis') }}
+
+# Set the maximum number of connected clients
+maxclients {{ redis_max_clients | default(10000) }}
