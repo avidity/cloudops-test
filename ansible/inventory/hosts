@@ -1,10 +1,12 @@
 [staging]
-debian_test ansible_host=192.168.64.3
+# Replace with the real staging host or VM address before use.
+debian_test ansible_host=203.0.113.10
 
 [staging:vars]
 ansible_user=deploy
 ansible_python_interpreter=/usr/bin/python3
-ansible_ssh_private_key_file=/Users/konrad/.ssh/cloudops_test_debian
+# Replace with the real private key path used to access the staging host.
+ansible_ssh_private_key_file=/path/to/your/deploy/private_key
 ansible_ssh_common_args='-o IdentitiesOnly=yes'
 
 [production]
