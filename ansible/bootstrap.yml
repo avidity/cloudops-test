@@ -1,0 +1,9 @@
+---
+- name: Bootstrap Debian application hosts
+  hosts: app
+  become: true #escalate privileges when tasks need root. Tasks need root run with sudo
+
+  roles:
+    - users
+    - sshd
+    - firewall

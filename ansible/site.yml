@@ -1,0 +1,17 @@
+---
+- name: Configure application hosts
+  hosts: app
+  remote_user: deploy
+  become: true
+
+  roles:
+    - common
+    - users
+    - sshd
+    - firewall
+    - journald
+    - docker
+    - app
+    - systemd_reload
+    - nginx
+    - backup

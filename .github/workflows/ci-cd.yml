@@ -1,0 +1,132 @@
+name: CI and Deploy
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      target_environment:
+        description: Target environment
+        required: true
+        default: staging
+        type: choice
+        options:
+          - staging
+          - production
+
+jobs:
+  lint:
+    name: Lint and Syntax Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install shellcheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+
+      - name: Install Ansible tooling
+        run: |
+          python -m pip install --upgrade pip
+          pip install "ansible>=11,<12" "ansible-lint>=25,<26"
+
+      - name: Install Ansible collections
+        working-directory: ansible
+        run: ansible-galaxy collection install -r requirements.yml
+
+      - name: Write mock staging vault file for CI checks
+        run: |
+          mkdir -p ansible/inventory/group_vars/staging
+          cat > ansible/inventory/group_vars/staging/vault.yml <<'EOF'
+          ---
+          vault_postgres_app_password: lint-only
+          vault_postgres_readonly_password: lint-only
+          vault_postgres_superuser_password: lint-only
+          vault_s3_access_key: lint-only
+          vault_s3_secret_key: lint-only
+          vault_ci_deploy_ssh_private_key: |
+            lint-only
+          EOF
+
+      - name: Run ansible-lint
+        working-directory: ansible
+        run: ansible-lint .
+
+      - name: Run shellcheck on tracked shell templates
+        run: |
+          shellcheck -s bash ansible/roles/systemd_reload/templates/app-reload.sh.j2
+          shellcheck -s bash ansible/roles/backup/templates/app-db-backup.sh.j2
+
+      - name: Syntax check Ansible playbooks
+        working-directory: ansible
+        run: |
+          ansible-playbook bootstrap.yml --syntax-check
+          ansible-playbook site.yml --syntax-check
+          ansible-playbook deploy.yml --syntax-check
+
+  deploy:
+    name: Deploy
+    needs: lint
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.target_environment || 'staging' }}
+
+    env:
+      TARGET_ENVIRONMENT: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.target_environment || 'staging' }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install Ansible tooling
+        run: |
+          python -m pip install --upgrade pip
+          pip install "ansible>=11,<12"
+
+      - name: Install Ansible collections
+        working-directory: ansible
+        run: ansible-galaxy collection install -r requirements.yml
+
+      - name: Configure SSH key
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+      - name: Configure known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.DEPLOY_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Create temporary CI inventory
+        run: |
+          cat > ansible/inventory/ci.ini <<EOF
+          [${TARGET_ENVIRONMENT}]
+          target ansible_host=${{ secrets.DEPLOY_HOST }}
+
+          [${TARGET_ENVIRONMENT}:vars]
+          ansible_user=deploy
+          ansible_python_interpreter=/usr/bin/python3
+          ansible_ssh_private_key_file=$HOME/.ssh/deploy_key
+          ansible_ssh_common_args=-o IdentitiesOnly=yes
+          EOF
+
+      - name: Run deploy playbook
+        working-directory: ansible
+        run: ansible-playbook -i inventory/ci.ini deploy.yml --limit "${TARGET_ENVIRONMENT}"

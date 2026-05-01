@@ -1,0 +1,34 @@
+---
+- name: Install application reload helper script
+  ansible.builtin.template:
+    src: app-reload.sh.j2
+    dest: "{{ app_reload_script_path }}"
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install application reload systemd unit
+  ansible.builtin.copy:
+    dest: "/etc/systemd/system/{{ app_reload_service_name }}"
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Reload the {{ app_name }} application container
+      Documentation={{ app_repo_url }}
+      Requires=docker.service
+      After=docker.service network-online.target
+      Wants=network-online.target
+      ConditionPathExists={{ app_reload_compose_file }}
+
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      WorkingDirectory={{ app_reload_working_directory }}
+      ExecStart={{ app_reload_script_path }}
+      ExecReload={{ app_reload_script_path }}
+      TimeoutStartSec={{ app_reload_timeout_start_sec }}
+      StandardOutput=journal
+      StandardError=journal
+  notify: reload systemd

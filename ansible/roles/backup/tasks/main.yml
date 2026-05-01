@@ -1,0 +1,99 @@
+---
+- name: Install backup dependencies
+  ansible.builtin.apt:
+    name: "{{ backup_packages }}"
+    state: present
+
+- name: Ensure backup archive directory exists
+  ansible.builtin.file:
+    path: "{{ backup_archive_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Write backup environment file
+  ansible.builtin.copy:
+    dest: "{{ backup_env_file }}"
+    owner: root
+    group: root
+    mode: "0600"
+    content: |
+      BACKUP_ARCHIVE_DIR={{ backup_archive_dir }}
+      BACKUP_LOCAL_RETENTION_DAYS={{ backup_local_retention_days }}
+      BACKUP_UPLOAD_ENABLED={{ 'true' if backup_upload_enabled | bool else 'false' }}
+      BACKUP_S3_BUCKET={{ backup_s3_bucket }}
+      BACKUP_S3_ENDPOINT={{ backup_s3_endpoint }}
+      BACKUP_S3_PREFIX={{ backup_s3_prefix }}
+      AWS_ACCESS_KEY_ID={{ backup_s3_access_key }}
+      AWS_SECRET_ACCESS_KEY={{ backup_s3_secret_key }}
+      AWS_DEFAULT_REGION={{ backup_s3_region }}
+      AWS_EC2_METADATA_DISABLED=true
+
+# Current local-only behavior:
+# - the same script is used in both modes
+# - when `BACKUP_UPLOAD_ENABLED=false`, it creates the compressed archive locally
+#   and exits before the S3 upload section
+# - when real S3 upload is ready, comment out the inventory override
+#   `backup_upload_enabled: false` so the upload block below becomes active
+- name: Install backup script
+  ansible.builtin.template:
+    src: app-db-backup.sh.j2
+    dest: "{{ backup_script_path }}"
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install backup systemd service
+  ansible.builtin.copy:
+    dest: "/etc/systemd/system/{{ backup_systemd_service_name }}"
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Create and upload a compressed PostgreSQL backup for {{ app_name }}
+      Requires=docker.service
+      After=docker.service network-online.target
+      Wants=network-online.target
+      ConditionPathExists={{ backup_script_path }}
+      ConditionPathExists={{ backup_env_file }}
+
+      [Service]
+      Type=oneshot
+      User=root
+      Group=root
+      EnvironmentFile={{ backup_env_file }}
+      ExecStart={{ backup_script_path }}
+      Nice=10
+      IOSchedulingClass=best-effort
+      IOSchedulingPriority=7
+      StandardOutput=journal
+      StandardError=journal
+  notify: reload systemd
+
+- name: Install backup systemd timer
+  ansible.builtin.copy:
+    dest: "/etc/systemd/system/{{ backup_systemd_timer_name }}"
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Run {{ backup_systemd_service_name }} every hour
+
+      [Timer]
+      OnCalendar={{ backup_timer_on_calendar }}
+      Persistent=true
+      RandomizedDelaySec={{ backup_timer_randomized_delay_sec }}
+      Unit={{ backup_systemd_service_name }}
+
+      [Install]
+      WantedBy=timers.target
+  notify: reload systemd
+
+- name: Ensure backup timer is enabled and started
+  ansible.builtin.systemd_service:
+    name: "{{ backup_systemd_timer_name }}"
+    state: started
+    enabled: true

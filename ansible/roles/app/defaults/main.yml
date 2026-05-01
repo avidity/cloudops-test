@@ -1,0 +1,84 @@
+---
+app_compose_project_name: "{{ app_name }}"
+app_checkout_dir: "{{ app_root }}/src"
+app_env_file: "{{ app_root }}/.env"
+app_compose_file: "{{ app_root }}/docker-compose.yml"
+app_container_name: "{{ app_name }}-app"
+app_restart_policy: unless-stopped
+app_healthcheck_interval: 30s
+app_healthcheck_timeout: 5s
+app_healthcheck_retries: 5
+
+# Current local-only source/image flow:
+# - the role copies the local Mac working tree to the VM
+# - the VM then builds `{{ app_image_repository }}:{{ app_image_tag }}` locally
+# - this keeps the feedback loop simple while developing the repo itself
+#
+# Future git-on-VM source delivery:
+# - keep `app_checkout_dir` as the repository root on the VM
+# - uncomment the settings below
+# - uncomment the example `ansible.builtin.git` task in `roles/app/tasks/main.yml`
+# - comment out the three local-copy tasks in that same file:
+#   - Copy application source to remote build context
+#   - Copy Dockerfile to remote build context
+#   - Copy dockerignore to remote build context
+# - keep the compose file, reload service, and deploy health checks
+#
+# Future tagged-image workflow instead of building on the VM:
+# - set `app_image_repository` to the real registry image name
+# - set `app_image_tag` to the release tag you want to deploy
+# - comment out the `build:` block inside the `app` service in
+#   `roles/app/tasks/main.yml`
+# - uncomment the future `pull_policy` line described in that file
+# - in that workflow the VM pulls a prebuilt image instead of building from
+#   copied files or a git checkout
+#
+# Git-on-VM settings to uncomment later:
+# - `app_repo_version` is the branch, tag, or commit to check out
+# - `app_repo_update` controls whether the VM pulls new changes on later runs
+# app_repo_version: main
+# app_repo_update: true
+
+# Tagged-image workflow settings to uncomment later:
+# - use these only if deployments should pull a prebuilt image instead of
+#   building the image on the VM
+# app_image_repository: ghcr.io/your-org/cloudops-test
+# app_image_tag: "2026.05.01"
+# app_image_pull_policy: always
+
+# `false` during full provisioning from `site.yml`:
+# - the app role both syncs files and builds/starts the container itself
+#
+# `true` during update deployments from `deploy.yml`:
+# - the app role only syncs files to the VM
+# - the custom systemd reload service performs the rebuild/restart step
+app_deploy_only: false
+
+app_postgres_service_name: postgres
+app_redis_service_name: redis
+
+app_postgres_container_name: "{{ app_name }}-postgres"
+app_redis_container_name: "{{ app_name }}-redis"
+
+app_postgres_image: "postgres:{{ postgres_version }}"
+app_redis_image: "redis:{{ redis_version }}-bookworm"
+
+app_postgres_data_dir: "{{ app_storage_root }}/postgres"
+app_redis_data_dir: "{{ app_storage_root }}/redis"
+
+app_postgres_init_dir: "{{ app_checkout_dir }}/docker/initdb"
+
+app_postgres_bootstrap_user: postgres
+app_postgres_bootstrap_password: "{{ vault_postgres_superuser_password }}"
+
+# Live runtime PostgreSQL settings for the Compose-managed database.
+# These make the PostgreSQL server configuration explicit in the same runtime
+# path that the app actually uses, instead of only documenting defaults.
+#
+# If you later want to tune PostgreSQL differently per environment, override
+# these in group_vars or host_vars and re-run `site.yml`.
+app_postgres_listen_addresses: "*"
+app_postgres_max_connections: 100
+app_postgres_shared_buffers: 128MB
+app_postgres_log_connections: "on"
+app_postgres_log_disconnections: "on"

@@ -1,0 +1,4 @@
+---
+sshd_allow_users:
+  - deploy
+  - john

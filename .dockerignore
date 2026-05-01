@@ -1,0 +1,5 @@
+.git
+.github
+ansible
+__pycache__
+*.pyc

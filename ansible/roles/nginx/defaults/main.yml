@@ -1,0 +1,33 @@
+---
+nginx_package_name: nginx
+nginx_service_name: nginx
+
+nginx_apt_prerequisite_packages:
+  - ca-certificates
+  - curl
+  - gnupg2
+  - debian-archive-keyring
+  - openssl
+
+nginx_apt_keyring_dir: /usr/share/keyrings
+nginx_apt_keyring_file: "{{ nginx_apt_keyring_dir }}/nginx-archive-keyring.gpg"
+nginx_apt_signing_key_tmp: /tmp/nginx_signing.key
+nginx_apt_repository_file: /etc/apt/sources.list.d/nginx.list
+nginx_apt_preference_file: /etc/apt/preferences.d/99nginx
+
+nginx_site_name: "{{ app_name }}"
+nginx_server_name: "{{ app_domains | first }}"
+nginx_upstream_host: "{{ app_bind_host }}"
+nginx_upstream_port: "{{ app_bind_port }}"
+nginx_stub_status_allow:
+  - 127.0.0.1
+  - ::1
+
+nginx_ssl_dir: /etc/nginx/ssl
+nginx_ssl_private_key: "{{ nginx_ssl_dir }}/{{ nginx_site_name }}.key"
+nginx_ssl_certificate: "{{ nginx_ssl_dir }}/{{ nginx_site_name }}.crt"
+
+nginx_conf_d_dir: /etc/nginx/conf.d
+nginx_site_config_file: "{{ nginx_conf_d_dir }}/{{ nginx_site_name }}.conf"
+nginx_default_conf_file: "{{ nginx_conf_d_dir }}/default.conf"
+nginx_default_site_file: /etc/nginx/sites-enabled/default

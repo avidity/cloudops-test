@@ -1,0 +1,155 @@
+---
+- name: Install Nginx repository prerequisites
+  ansible.builtin.apt:
+    name: "{{ nginx_apt_prerequisite_packages }}"
+    state: present
+
+- name: Ensure Nginx keyring directory exists
+  ansible.builtin.file:
+    path: "{{ nginx_apt_keyring_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Download Nginx signing key
+  ansible.builtin.get_url:
+    url: https://nginx.org/keys/nginx_signing.key
+    dest: "{{ nginx_apt_signing_key_tmp }}"
+    owner: root
+    group: root
+    mode: "0644"
+  register: nginx_signing_key_download
+
+- name: Check whether Nginx keyring already exists
+  ansible.builtin.stat:
+    path: "{{ nginx_apt_keyring_file }}"
+  register: nginx_keyring_stat
+
+- name: Convert Nginx signing key to keyring format
+  ansible.builtin.command:
+    cmd: "gpg --dearmor --yes --output {{ nginx_apt_keyring_file }} {{ nginx_apt_signing_key_tmp }}"
+  when: nginx_signing_key_download.changed or not nginx_keyring_stat.stat.exists
+
+- name: Configure Nginx apt repository
+  ansible.builtin.copy:
+    dest: "{{ nginx_apt_repository_file }}"
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      deb [signed-by={{ nginx_apt_keyring_file }}] https://nginx.org/packages/debian {{ ansible_facts['distribution_release'] }} nginx
+
+- name: Pin nginx.org packages above distro packages
+  ansible.builtin.copy:
+    dest: "{{ nginx_apt_preference_file }}"
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      Package: *
+      Pin: origin nginx.org
+      Pin: release o=nginx
+      Pin-Priority: 900
+
+- name: Update apt cache after adding Nginx repository
+  ansible.builtin.apt:
+    update_cache: true
+
+- name: Install Nginx
+  ansible.builtin.apt:
+    name: "{{ nginx_package_name }}"
+    state: present
+
+- name: Ensure Nginx SSL directory exists
+  ansible.builtin.file:
+    path: "{{ nginx_ssl_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Generate self-signed certificate for local VM testing
+  ansible.builtin.command:
+    cmd: >
+      openssl req -x509 -nodes -newkey rsa:2048
+      -keyout {{ nginx_ssl_private_key }}
+      -out {{ nginx_ssl_certificate }}
+      -days 365
+      -subj /CN={{ nginx_server_name }}
+      -addext subjectAltName=DNS:{{ nginx_server_name }}
+  args:
+    creates: "{{ nginx_ssl_certificate }}"
+  notify: reload nginx
+
+- name: Set permissions on Nginx private key
+  ansible.builtin.file:
+    path: "{{ nginx_ssl_private_key }}"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Remove default Nginx conf.d site if present
+  ansible.builtin.file:
+    path: "{{ nginx_default_conf_file }}"
+    state: absent
+  notify: reload nginx
+
+- name: Remove default Debian Nginx site if present
+  ansible.builtin.file:
+    path: "{{ nginx_default_site_file }}"
+    state: absent
+  notify: reload nginx
+
+- name: Install Nginx reverse proxy configuration
+  ansible.builtin.copy:
+    dest: "{{ nginx_site_config_file }}"
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      server {
+          listen 80;
+          server_name {{ nginx_server_name }};
+
+          location = /nginx_status {
+              stub_status;
+              access_log off;
+              allow 127.0.0.1;
+              allow ::1;
+              deny all;
+          }
+
+          location / {
+              return 301 https://$host$request_uri;
+          }
+      }
+
+      server {
+          listen 443 ssl;
+          http2 on;
+          server_name {{ nginx_server_name }};
+
+          ssl_certificate {{ nginx_ssl_certificate }};
+          ssl_certificate_key {{ nginx_ssl_private_key }};
+
+          location / {
+              proxy_pass http://{{ nginx_upstream_host }}:{{ nginx_upstream_port }};
+              proxy_set_header Host $host;
+              proxy_set_header X-Real-IP $remote_addr;
+              proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+              proxy_set_header X-Forwarded-Proto https;
+              proxy_http_version 1.1;
+          }
+      }
+  notify: reload nginx
+
+- name: Validate Nginx configuration
+  ansible.builtin.command: nginx -t
+  changed_when: false
+
+- name: Ensure Nginx service is enabled and started
+  ansible.builtin.service:
+    name: "{{ nginx_service_name }}"
+    state: started
+    enabled: true

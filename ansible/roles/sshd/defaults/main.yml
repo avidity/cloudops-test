@@ -1,0 +1,7 @@
+---
+sshd_permit_root_login: "no"
+sshd_password_authentication: "no"
+sshd_kbd_interactive_authentication: "no"
+sshd_pubkey_authentication: "yes"
+sshd_allow_users:
+  - "{{ deploy_user }}"

@@ -1,0 +1,15 @@
+---
+# Current state:
+# - this file is only a production scaffold
+# - the `[production]` inventory group is still empty in `inventory/hosts`
+#
+# To switch production on later:
+# - add real production hosts under `[production]`
+# - replace `app_domains` with the real production FQDN(s)
+# - optionally set `app_image_tag` to a specific release tag instead of `latest`
+# - add the real encrypted production vault file with the database, backup, and
+#   deploy credentials
+environment_name: production
+app_image_tag: latest
+app_domains:
+  - app.example.com

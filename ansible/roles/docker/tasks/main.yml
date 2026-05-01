@@ -1,0 +1,68 @@
+---
+- name: Remove conflicting Docker packages
+  ansible.builtin.apt:
+    name: "{{ docker_conflicting_packages }}"
+    state: absent
+
+- name: Ensure Docker apt keyring directory exists
+  ansible.builtin.file:
+    path: "{{ docker_apt_keyring_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Download Docker apt GPG key
+  ansible.builtin.get_url:
+    url: https://download.docker.com/linux/debian/gpg
+    dest: "{{ docker_apt_keyring_file }}"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Get Debian package architecture
+  ansible.builtin.command: dpkg --print-architecture
+  register: docker_dpkg_architecture
+  changed_when: false
+
+- name: Remove incorrectly named Docker sources file
+  ansible.builtin.file:
+    path: /etc/apt/sources.list.d/docker.sources"
+    state: absent
+
+- name: Configure Docker apt repository
+  ansible.builtin.copy:
+    dest: "{{ docker_apt_sources_file }}"
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      Types: deb
+      URIs: https://download.docker.com/linux/debian
+      Suites: {{ ansible_facts['distribution_release'] }}
+      Components: stable
+      Architectures: {{ docker_dpkg_architecture.stdout }}
+      Signed-By: {{ docker_apt_keyring_file }}
+
+- name: Update apt cache after adding Docker repository
+  ansible.builtin.apt:
+    update_cache: true
+
+- name: Install Docker Engine and plugins
+  ansible.builtin.apt:
+    name: "{{ docker_packages }}"
+    state: present
+
+- name: Ensure Docker service is enabled and started
+  ansible.builtin.service:
+    name: docker
+    state: started
+    enabled: true
+
+- name: Optionally add users to docker group
+  ansible.builtin.user:
+    name: "{{ item }}"
+    groups: docker
+    append: true
+  loop: "{{ docker_users }}"
+  when: docker_manage_group_membership | bool
