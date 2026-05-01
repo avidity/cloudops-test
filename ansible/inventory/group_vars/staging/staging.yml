@@ -1,0 +1,5 @@
+---
+environment_name: staging
+app_image_tag: latest
+app_domains:
+  - staging.example.com

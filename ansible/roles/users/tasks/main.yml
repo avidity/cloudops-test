@@ -1,0 +1,91 @@
+---
+- name: Ensure sudo is installed
+  ansible.builtin.package:
+    name: sudo
+    state: present
+
+- name: Discover deploy SSH public keys from the role files directory
+  ansible.builtin.set_fact:
+    deploy_authorized_key_files: >-
+      {{
+        query(
+          'ansible.builtin.fileglob',
+          role_path ~ '/' ~ ssh_allowed_public_keys_dir ~ '/*.pub'
+        )
+      }}
+  when: deploy_authorized_keys | length == 0
+
+- name: Read deploy SSH public keys from files
+  ansible.builtin.set_fact:
+    deploy_authorized_keys_from_files: >-
+      {{
+        (deploy_authorized_keys_from_files | default([]))
+        + [lookup('ansible.builtin.file', item) | trim]
+      }}
+  loop: "{{ deploy_authorized_key_files | default([]) }}"
+  when: deploy_authorized_keys | length == 0
+
+- name: Build final deploy SSH public key list
+  ansible.builtin.set_fact:
+    deploy_authorized_keys_effective: >-
+      {{
+        (
+          deploy_authorized_keys
+          if deploy_authorized_keys | length > 0
+          else deploy_authorized_keys_from_files | default([])
+        )
+        | map('trim')
+        | reject('equalto', '')
+        | list
+      }}
+
+- name: Require at least one deploy SSH public key
+  ansible.builtin.assert:
+    that:
+      - deploy_authorized_keys_effective | length > 0
+    fail_msg: >-
+      Provide deploy_authorized_keys in inventory vars or add one or more
+      .pub files under roles/users/files/ssh_keys/.
+
+- name: Ensure the deploy primary group exists
+  ansible.builtin.group:
+    name: "{{ deploy_group }}"
+    state: present
+
+- name: Ensure the deploy user exists
+  ansible.builtin.user:
+    name: "{{ deploy_user }}"
+    comment: "{{ deploy_comment }}"
+    group: "{{ deploy_group }}"
+    groups: "{{ deploy_secondary_groups | join(',') }}"
+    append: true
+    shell: "{{ deploy_shell }}"
+    home: "{{ deploy_home }}"
+    create_home: true
+    password_lock: "{{ deploy_password_locked | bool }}"
+    state: present
+
+- name: Ensure the deploy .ssh directory exists
+  ansible.builtin.file:
+    path: "{{ deploy_home }}/.ssh"
+    state: directory
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_group }}"
+    mode: "0700"
+
+- name: Install deploy SSH authorized keys
+  ansible.posix.authorized_key:
+    user: "{{ deploy_user }}"
+    key: "{{ item }}"
+    state: present
+    manage_dir: false
+  loop: "{{ deploy_authorized_keys_effective }}"
+
+- name: Configure sudoers access for deploy
+  ansible.builtin.template:
+    src: deploy-sudoers.j2
+    dest: "/etc/sudoers.d/{{ deploy_sudoers_filename }}"
+    owner: root
+    group: root
+    mode: "0440"
+    validate: "visudo -cf %s"

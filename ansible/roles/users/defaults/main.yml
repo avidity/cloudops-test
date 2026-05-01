@@ -1,0 +1,12 @@
+---
+deploy_user: "{{ app_user }}"
+deploy_group: "{{ app_group }}"
+deploy_shell: /bin/bash
+deploy_home: "/home/{{ deploy_user }}"
+deploy_comment: Deployment user
+deploy_secondary_groups:
+  - sudo
+deploy_authorized_keys: []
+deploy_password_locked: true
+deploy_sudo_nopasswd: true
+deploy_sudoers_filename: "{{ deploy_user }}"

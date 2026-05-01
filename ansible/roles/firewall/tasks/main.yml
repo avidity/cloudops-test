@@ -1,0 +1,30 @@
+---
+- name: Ensure ufw is installed
+  ansible.builtin.package:
+    name: ufw
+    state: present
+
+- name: Set default incoming policy
+  community.general.ufw:
+    direction: incoming
+    policy: "{{ firewall_default_incoming_policy }}"
+
+- name: Set default outgoing policy
+  community.general.ufw:
+    direction: outgoing
+    policy: "{{ firewall_default_outgoing_policy }}"
+
+- name: Allow required TCP ports
+  community.general.ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+  loop: "{{ firewall_allowed_tcp_ports }}"
+
+- name: Enable ufw logging
+  community.general.ufw:
+    logging: "{{ firewall_logging }}"
+
+- name: Enable ufw
+  community.general.ufw:
+    state: enabled

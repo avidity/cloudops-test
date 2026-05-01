@@ -1,0 +1,7 @@
+---
+app_reload_service_name: app-reload.service
+app_reload_script_path: /usr/local/bin/app-reload.sh
+app_reload_working_directory: "{{ app_root }}"
+app_reload_compose_file: "{{ app_root }}/docker-compose.yml"
+app_reload_compose_service: app
+app_reload_timeout_start_sec: 300

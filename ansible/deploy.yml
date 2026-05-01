@@ -1,0 +1,56 @@
+---
+- name: Deploy application updates
+  hosts: app
+  remote_user: deploy
+  become: true
+
+  vars:
+    app_deploy_only: true
+
+  # Current local VM learning flow:
+  # - sync the local working tree from the Mac to the VM
+  # - keep the migration step as a placeholder
+  # - trigger the custom systemd reload service to rebuild/restart the app
+  #
+  # If you later switch to git-on-VM deployment:
+  # - keep this playbook structure
+  # - keep `app_deploy_only: true`
+  # - keep the migration hook here
+  # - keep the reload + healthcheck verification here
+  # - do NOT add extra deploy tasks here just for source copying
+  # - instead, change the source-delivery part inside `roles/app/tasks/main.yml`:
+  #   - uncomment the git checkout task there
+  #   - comment out the three local-copy tasks there
+  #
+  # So the future change belongs mostly in the app role, not in this playbook.
+
+  roles:
+    - app
+    - systemd_reload
+
+  post_tasks:
+    - name: TODO framework migration hook
+      ansible.builtin.debug:
+        msg: >-
+          Replace this placeholder with the migration command your application
+          framework needs. In the current flow it belongs after the app files
+          are synced and before app-reload.service is started.
+
+    - name: Trigger application reload service
+      ansible.builtin.systemd_service:
+        name: "{{ app_reload_service_name }}"
+        state: reloaded
+
+    - name: Wait for application container healthcheck to pass
+      ansible.builtin.command:
+        cmd: "docker inspect --format {{ '{{.State.Health.Status}}' }} {{ app_container_name }}"
+      register: app_container_health
+      changed_when: false
+      retries: 20
+      delay: 3
+      until: app_container_health.stdout == "healthy"
+
+    - name: Verify application responds on localhost
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:{{ app_bind_port }}"
+        status_code: 200

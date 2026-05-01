@@ -1,0 +1,45 @@
+---
+- name: Ensure OpenSSH server is installed
+  ansible.builtin.package:
+    name: openssh-server
+    state: present
+
+- name: Disable root SSH login
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?PermitRootLogin\s+'
+    line: "PermitRootLogin {{ sshd_permit_root_login }}"
+    validate: /usr/sbin/sshd -t -f %s
+  notify: restart sshd
+
+- name: Disable SSH password authentication
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?PasswordAuthentication\s+'
+    line: "PasswordAuthentication {{ sshd_password_authentication }}"
+    validate: /usr/sbin/sshd -t -f %s
+  notify: restart sshd
+
+- name: Disable keyboard-interactive authentication
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?KbdInteractiveAuthentication\s+'
+    line: "KbdInteractiveAuthentication {{ sshd_kbd_interactive_authentication }}"
+    validate: /usr/sbin/sshd -t -f %s
+  notify: restart sshd
+
+- name: Ensure public key authentication is enabled
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?PubkeyAuthentication\s+'
+    line: "PubkeyAuthentication {{ sshd_pubkey_authentication }}"
+    validate: /usr/sbin/sshd -t -f %s
+  notify: restart sshd
+
+- name: Restrict allowed SSH users
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?AllowUsers\s+'
+    line: "AllowUsers {{ sshd_allow_users | join(' ') }}"
+    validate: /usr/sbin/sshd -t -f %s
+  notify: restart sshd

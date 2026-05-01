@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+backup_env_file="{{ backup_env_file }}"
+docker_bin="{{ backup_docker_binary }}"
+postgres_container_name="{{ backup_postgres_container_name }}"
+postgres_exec_user="{{ backup_postgres_exec_user }}"
+pg_dump_command="{{ backup_pg_dump_command }}"
+postgres_dump_user="{{ backup_postgres_dump_user }}"
+
+# shellcheck source=/dev/null
+. "$backup_env_file"
+
+: "${BACKUP_ARCHIVE_DIR:?}"
+: "${BACKUP_LOCAL_RETENTION_DAYS:?}"
+: "${BACKUP_UPLOAD_ENABLED:?}"
+: "${BACKUP_S3_BUCKET:?}"
+: "${BACKUP_S3_ENDPOINT:?}"
+: "${BACKUP_S3_PREFIX:?}"
+
+timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
+host_name="$(hostname -s)"
+archive_name="${host_name}-postgresql-${timestamp}.sql.gz"
+archive_path="${BACKUP_ARCHIVE_DIR}/${archive_name}"
+
+mkdir -p "${BACKUP_ARCHIVE_DIR}"
+umask 077
+
+"$docker_bin" exec --user "$postgres_exec_user" "$postgres_container_name" \
+  "$pg_dump_command" -U "$postgres_dump_user" --clean --if-exists | /bin/gzip -9 > "${archive_path}"
+
+test -s "${archive_path}"
+
+find "${BACKUP_ARCHIVE_DIR}" -type f -name '*.sql.gz' -mtime +"${BACKUP_LOCAL_RETENTION_DAYS}" -delete
+
+# Local-only VM mode:
+# keep the archive on disk and skip any remote upload.
+#
+# Real S3-compatible mode:
+# comment out the inventory override `backup_upload_enabled: false`
+# and the script will continue into the upload block below.
+if [ "${BACKUP_UPLOAD_ENABLED}" != "true" ]; then
+  echo "Backup upload disabled; archive kept locally at ${archive_path}"
+  exit 0
+fi
+
+# Real S3-compatible upload path.
+if [ -n "${BACKUP_S3_PREFIX}" ]; then
+  s3_uri="s3://${BACKUP_S3_BUCKET}/${BACKUP_S3_PREFIX%/}/${archive_name}"
+else
+  s3_uri="s3://${BACKUP_S3_BUCKET}/${archive_name}"
+fi
+
+/usr/bin/aws --endpoint-url "${BACKUP_S3_ENDPOINT}" s3 cp "${archive_path}" "${s3_uri}"
+
+echo "Uploaded ${archive_path} to ${s3_uri}"

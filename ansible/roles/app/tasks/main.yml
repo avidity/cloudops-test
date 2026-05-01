@@ -1,0 +1,251 @@
+---
+- name: Ensure application source directory exists
+  ansible.builtin.file:
+    path: "{{ app_checkout_dir }}"
+    state: directory
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: "0755"
+
+# Current local-VM learning flow:
+# - copy the local repository files from the Mac to the VM
+# - build the image on the VM from those copied files
+# This keeps iteration simple while the repo itself is still being developed.
+#
+# Future git-on-VM alternative:
+# 1. Keep `Ensure application source directory exists`.
+# 2. Uncomment the git checkout task example below.
+# 3. Comment out these three local-copy tasks because the git checkout would
+#    already provide the same files inside `app_checkout_dir`:
+#    - Copy application source to remote build context
+#    - Copy Dockerfile to remote build context
+#    - Copy dockerignore to remote build context
+# 4. Keep `Write application environment file`.
+# 5. Keep `Write application compose file`.
+# 6. Keep the final build/start task for `site.yml` and the reload-based flow in
+#    `deploy.yml`.
+#
+# Future tagged-image alternative:
+# 1. Keep `Ensure application source directory exists` if you still want a place
+#    for env files, compose files, and helper assets on the VM.
+# 2. Set a real registry image name and release tag in `roles/app/defaults` or
+#    inventory vars.
+# 3. In the compose content below:
+#    - comment out the `build:` block under the `app` service
+#    - uncomment the future `pull_policy` line under the `app` service
+# 4. In that workflow the VM pulls the prebuilt app image instead of building it
+#    from copied files or a git checkout.
+#
+# In other words, the source-sync mechanism changes, but the rest of the app
+# role can stay mostly the same.
+#
+# Example future task:
+# - name: Check out application repository on the VM
+#   ansible.builtin.git:
+#     repo: "{{ app_repo_url }}"
+#     dest: "{{ app_checkout_dir }}"
+#     version: "{{ app_repo_version | default('main') }}"
+#     update: "{{ app_repo_update | default(true) }}"
+#     force: false
+#   become_user: "{{ app_user }}"
+
+- name: Copy application source to remote build context
+  ansible.builtin.copy:
+    src: "{{ role_path }}/../../../app/"
+    dest: "{{ app_checkout_dir }}/app/"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: "0644"
+    directory_mode: "0755"
+
+- name: Copy Dockerfile to remote build context
+  ansible.builtin.copy:
+    src: "{{ role_path }}/../../../Dockerfile"
+    dest: "{{ app_checkout_dir }}/Dockerfile"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: "0644"
+
+- name: Copy dockerignore to remote build context
+  ansible.builtin.copy:
+    src: "{{ role_path }}/../../../.dockerignore"
+    dest: "{{ app_checkout_dir }}/.dockerignore"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: "0644"
+
+- name: Ensure application service data directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0777"
+  loop:
+    - "{{ app_postgres_data_dir }}"
+    - "{{ app_redis_data_dir }}"
+    - "{{ app_postgres_init_dir }}"
+
+- name: Write application environment file
+  ansible.builtin.copy:
+    dest: "{{ app_env_file }}"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: "0640"
+    content: |
+      APP_PORT=8000
+      DATABASE_URL=postgresql://{{ postgres_app_user }}:{{ vault_postgres_app_password }}@{{ app_postgres_service_name }}:5432/{{ postgres_database }}
+      REDIS_URL=redis://{{ app_redis_service_name }}:6379/0
+
+- name: Write PostgreSQL init SQL for the compose-managed stack
+  ansible.builtin.copy:
+    dest: "{{ app_postgres_init_dir }}/01-app.sql"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: "0644"
+    content: |
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{{ postgres_app_user }}') THEN
+          CREATE ROLE {{ postgres_app_user }} LOGIN PASSWORD '{{ vault_postgres_app_password }}';
+        ELSE
+          ALTER ROLE {{ postgres_app_user }} LOGIN PASSWORD '{{ vault_postgres_app_password }}';
+        END IF;
+      END $$;
+
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{{ postgres_readonly_user }}') THEN
+          CREATE ROLE {{ postgres_readonly_user }} LOGIN PASSWORD '{{ vault_postgres_readonly_password }}';
+        ELSE
+          ALTER ROLE {{ postgres_readonly_user }} LOGIN PASSWORD '{{ vault_postgres_readonly_password }}';
+        END IF;
+      END $$;
+
+      ALTER DATABASE {{ postgres_database }} OWNER TO {{ postgres_app_user }};
+      GRANT CONNECT ON DATABASE {{ postgres_database }} TO {{ postgres_readonly_user }};
+
+      \connect {{ postgres_database }}
+
+      GRANT ALL ON SCHEMA public TO {{ postgres_app_user }};
+      GRANT USAGE ON SCHEMA public TO {{ postgres_readonly_user }};
+      GRANT SELECT ON ALL TABLES IN SCHEMA public TO {{ postgres_readonly_user }};
+      GRANT SELECT ON ALL SEQUENCES IN SCHEMA public TO {{ postgres_readonly_user }};
+
+      ALTER DEFAULT PRIVILEGES FOR ROLE {{ postgres_app_user }} IN SCHEMA public
+      GRANT SELECT ON TABLES TO {{ postgres_readonly_user }};
+
+      ALTER DEFAULT PRIVILEGES FOR ROLE {{ postgres_app_user }} IN SCHEMA public
+      GRANT SELECT ON SEQUENCES TO {{ postgres_readonly_user }};
+
+- name: Write application compose file
+  ansible.builtin.copy:
+    dest: "{{ app_compose_file }}"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: "0644"
+    content: |
+      services:
+        postgres:
+          image: {{ app_postgres_image }}
+          container_name: {{ app_postgres_container_name }}
+          restart: {{ app_restart_policy }}
+          command:
+            - postgres
+            - -c
+            - "listen_addresses={{ app_postgres_listen_addresses }}"
+            - -c
+            - "max_connections={{ app_postgres_max_connections }}"
+            - -c
+            - "shared_buffers={{ app_postgres_shared_buffers }}"
+            - -c
+            - "log_connections={{ app_postgres_log_connections }}"
+            - -c
+            - "log_disconnections={{ app_postgres_log_disconnections }}"
+          environment:
+            POSTGRES_DB: {{ postgres_database }}
+            POSTGRES_USER: {{ app_postgres_bootstrap_user }}
+            POSTGRES_PASSWORD: {{ app_postgres_bootstrap_password }}
+          volumes:
+            - {{ app_postgres_data_dir }}:/var/lib/postgresql
+            - {{ app_postgres_init_dir }}:/docker-entrypoint-initdb.d:ro
+          healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U {{ postgres_app_user }} -d {{ postgres_database }}"]
+            interval: 10s
+            timeout: 5s
+            retries: 10
+
+        redis:
+          image: {{ app_redis_image }}
+          container_name: {{ app_redis_container_name }}
+          restart: {{ app_restart_policy }}
+          command:
+            - redis-server
+            - --appendonly
+            - "yes"
+            - --appendfsync
+            - everysec
+            - --save
+            - "900 1"
+            - --save
+            - "300 10"
+            - --save
+            - "60 10000"
+          volumes:
+            - {{ app_redis_data_dir }}:/data
+          healthcheck:
+            test: ["CMD", "redis-cli", "ping"]
+            interval: 10s
+            timeout: 5s
+            retries: 10
+
+        app:
+          build:
+            context: ./src
+          image: {{ app_image_repository }}:{{ app_image_tag }}
+          # Future tagged-image workflow:
+          # - comment out the `build:` block above
+          # - uncomment `pull_policy`
+          # - set `app_image_repository` and `app_image_tag` to the real
+          #   registry image and release tag
+          # pull_policy: {{ app_image_pull_policy | default('always') }}
+          container_name: {{ app_container_name }}
+          restart: {{ app_restart_policy }}
+          env_file:
+            - .env
+          depends_on:
+            postgres:
+              condition: service_healthy
+            redis:
+              condition: service_healthy
+          ports:
+            - "{{ app_bind_host }}:{{ app_bind_port }}:8000"
+          healthcheck:
+            test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000')"]
+            interval: {{ app_healthcheck_interval }}
+            timeout: {{ app_healthcheck_timeout }}
+            retries: {{ app_healthcheck_retries }}
+
+# Full provisioning flow:
+# - build and start the compose project directly from the app role
+#
+# Deploy-only flow:
+# - only sync the files here
+# - `deploy.yml` will trigger `app-reload.service` after the optional migration
+#   hook so rebuild/restart happens through systemd
+#
+# If the role later switches to git-on-VM source delivery:
+# - this task can stay as it is
+# - the only intended source-delivery change is replacing the three local-copy
+#   tasks above with a git checkout/update task
+#
+# If the role later switches to a tagged-image deployment flow:
+# - this task can still stay as it is
+# - the image build step will be skipped because the compose file will point to
+#   a pulled image instead of a local `build:` context
+- name: Build and start the application compose project
+  community.docker.docker_compose_v2:
+    project_src: "{{ app_root }}"
+    state: present
+    build: always
+  when: not app_deploy_only | bool

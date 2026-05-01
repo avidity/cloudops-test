@@ -1,0 +1,18 @@
+---
+# Copy this file to:
+#   inventory/group_vars/staging/vault.yml
+#
+# Encrypt the copied file with:
+#   ansible-vault encrypt inventory/group_vars/staging/vault.yml
+
+vault_postgres_app_password: change-me
+vault_postgres_readonly_password: change-me
+
+# Used by the backup role when real S3-compatible upload is enabled.
+# In the current local-only VM flow, uploads are disabled, so these can stay as
+# dummy values until a real bucket is wired in.
+vault_s3_access_key: change-me
+vault_s3_secret_key: change-me
+vault_ci_deploy_ssh_private_key: |
+  REPLACE_WITH_CI_DEPLOY_KEY
+vault_postgres_superuser_password: change-me

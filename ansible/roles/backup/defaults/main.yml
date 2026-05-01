@@ -1,0 +1,35 @@
+---
+backup_script_path: /usr/local/bin/app-db-backup.sh
+backup_archive_dir: "{{ app_storage_root }}/backups"
+backup_env_file: /etc/app-db-backup.env
+backup_systemd_service_name: app-db-backup.service
+backup_systemd_timer_name: app-db-backup.timer
+
+backup_packages:
+  - awscli
+
+# Compose-managed PostgreSQL backup settings.
+backup_docker_binary: /usr/bin/docker
+backup_postgres_container_name: "{{ app_name }}-postgres"
+backup_postgres_exec_user: postgres
+backup_postgres_dump_user: postgres
+backup_pg_dump_command: pg_dumpall
+
+# Real S3-compatible upload settings.
+# These are the intended end-state variables for the role.
+# For local-only VM learning/testing, keep the inventory override
+# `backup_upload_enabled: false` in place so the script only writes compressed
+# archives to `backup_archive_dir` and skips the `aws s3 cp` upload step.
+backup_s3_access_key: "{{ vault_s3_access_key }}"
+backup_s3_secret_key: "{{ vault_s3_secret_key }}"
+backup_s3_region: us-east-1
+backup_s3_prefix: "{{ app_name }}/postgresql/{{ inventory_hostname }}"
+
+# Default behavior for the role is real upload enabled.
+# For the current local-only setup, override this to `false` in inventory.
+# Later, when a real S3-compatible bucket is ready, comment out the
+# local-only inventory override so this default becomes active again.
+backup_upload_enabled: true
+backup_local_retention_days: "{{ (backup_retention_months | int) * 31 }}"
+backup_timer_on_calendar: hourly
+backup_timer_randomized_delay_sec: 5m

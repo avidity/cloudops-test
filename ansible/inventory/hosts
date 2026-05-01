@@ -1,0 +1,25 @@
+[staging]
+debian_test ansible_host=192.168.64.3
+
+[staging:vars]
+ansible_user=deploy
+ansible_python_interpreter=/usr/bin/python3
+ansible_ssh_private_key_file=/Users/konrad/.ssh/cloudops_test_debian
+ansible_ssh_common_args='-o IdentitiesOnly=yes'
+
+[production]
+# Current state:
+# - production is scaffolded only
+# - no production host is configured yet
+#
+# To enable real production later:
+# - add one or more real production hosts here, for example:
+#   app_prod ansible_host=203.0.113.10
+# - point `ansible_ssh_private_key_file` at the real production deploy key
+# - add real production variables in `inventory/group_vars/production.yml`
+# - add the matching encrypted production vault values before running
+#   `site.yml` or `deploy.yml`
+
+[app:children]
+staging
+production

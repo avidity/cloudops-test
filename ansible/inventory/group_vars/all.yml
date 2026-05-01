@@ -1,0 +1,46 @@
+---
+app_name: cloudops-test
+app_user: deploy
+app_group: deploy
+
+app_root: /opt/app
+app_storage_root: /opt/storage
+app_repo_url: https://github.com/avidity/cloudops-test.git
+app_image_repository: app
+app_image_tag: latest
+app_bind_host: 127.0.0.1
+app_bind_port: 8000
+app_domains:
+  - example.com
+
+docker_version: "29"
+
+# These versions now drive the Compose-managed service images inside the `app`
+# stack. The old host-level `postgres` and `redis` roles are no longer used.
+postgres_version: "18"
+postgres_database: app
+postgres_app_user: app_rw
+postgres_readonly_user: app_ro
+redis_version: "8"
+nginx_version: "1.29"
+
+ssh_allowed_public_keys_dir: files/ssh_keys
+backup_retention_months: 6
+
+# Real S3-compatible bucket settings.
+# These can stay as placeholders while local-only backup testing is used.
+# Once a real bucket exists, replace them with the real bucket name and
+# endpoint, then comment out the local-only override further below.
+backup_s3_bucket: replace-me
+backup_s3_endpoint: https://s3.example.com
+
+# Current local-only learning mode:
+# - backups are still created on the VM under `/opt/storage/backups`
+# - the upload step is skipped even though the role already supports it
+# - this is useful until real S3-compatible credentials and bucket details exist
+#
+# When switching to real S3 upload later:
+# - comment out the line below
+# - set real `backup_s3_bucket` and `backup_s3_endpoint` values above
+# - keep `vault_s3_access_key` and `vault_s3_secret_key` in the encrypted vault
+backup_upload_enabled: false

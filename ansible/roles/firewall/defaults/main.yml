@@ -1,0 +1,8 @@
+---
+firewall_default_incoming_policy: deny
+firewall_default_outgoing_policy: allow
+firewall_allowed_tcp_ports:
+  - 22
+  - 80
+  - 443
+firewall_logging: "on"

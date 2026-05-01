@@ -1,0 +1,8 @@
+---
+journald_storage: persistent
+journald_max_retention_sec: 15552000
+journald_max_file_sec: 1day
+
+journald_config_dir: /etc/systemd/journald.conf.d
+journald_dropin_file: "{{ journald_config_dir }}/99-ansible.conf"
+journald_persistent_dir: /var/log/journal

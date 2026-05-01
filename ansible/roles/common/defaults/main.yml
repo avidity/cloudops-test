@@ -1,0 +1,19 @@
+---
+common_packages:
+  - ca-certificates
+  - curl
+  - git
+  - gnupg
+  - jq
+  - rsync
+  - unzip
+
+common_directories:
+  - path: "{{ app_root }}"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: "0755"
+  - path: "{{ app_storage_root }}"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: "0755"
