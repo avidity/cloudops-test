@@ -1,0 +1,14 @@
+- name: Create deploy user
+  ansible.builtin.user:
+    name: deploy
+    shell: /bin/bash
+    groups: sudo
+    append: yes
+    create_home: yes
+  become: true
+
+- name: Add authorized key
+  ansible.builtin.authorized_key:
+    user: deploy
+    key: "{{ lookup('file', 'files/deploy.pub') }}"
+    

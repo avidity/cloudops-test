@@ -1,0 +1,2 @@
+# a mock SSH public key inside
+ssh-rsa AAAAB3NzaC1fakeexamplekey deploy@test 

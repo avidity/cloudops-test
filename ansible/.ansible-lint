@@ -1,0 +1,9 @@
+skip_list:
+  - yaml
+  - fqcn
+  - no-changed-when
+  - ignore-errors
+  - risky-file-permissions
+  - command-instead-of-module
+  - experimental
+  

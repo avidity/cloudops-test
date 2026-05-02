@@ -1,0 +1,59 @@
+# - name: Install ufw
+#   ansible.builtin.apt:
+#     name: ufw
+#     state: present
+#     update_cache: yes
+
+# - name: Allow SSH
+#   ansible.builtin.command:
+#     cmd: ufw allow 22
+
+# - name: Allow HTTP
+#   ansible.builtin.command:
+#     cmd: ufw allow 80
+
+# - name: Allow HTTPS
+#   ansible.builtin.command:
+#     cmd: ufw allow 443
+
+# - name: Enable firewall
+#   ansible.builtin.command:
+#     cmd: ufw --force enable
+
+### This is a placeholder for firewall configuration. In a real setup, 
+#.   you would configure the firewall to allow necessary traffic and block unwanted access. 
+#   For example, you might use `ufw` on Ubuntu or `firewalld` on CentOS.
+#.  The specific rules would depend on your application's requirements and 
+#.   security policies
+
+
+# - name: Skip firewall in Docker environment
+#   ansible.builtin.debug:
+#     msg: "Firewall skipped (not supported in Docker container)"
+
+- name: Install ufw
+  ansible.builtin.apt:
+    name: ufw
+    state: present
+  become: true
+
+- name: Allow SSH
+  community.general.ufw:
+    rule: allow
+    name: OpenSSH
+
+- name: Allow HTTP
+  community.general.ufw:
+    rule: allow
+    port: 80
+
+- name: Allow HTTPS
+  community.general.ufw:
+    rule: allow
+    port: 443
+
+- name: Enable firewall
+  community.general.ufw:
+    state: enabled
+    policy: deny
+    

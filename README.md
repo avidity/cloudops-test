@@ -1,3 +1,48 @@
+# CloudOps Test Project
+
+## Requirements
+- Ansible >= 2.15
+- SSH access to VM
+- Python 3.10+
+- Docker installed on VM
+
+## VM Inventory
+Edit:
+inventories/production/hosts.yml
+
+Example:
+vm1 ansible_host=192.168.56.3 ansible_user=user (change to your)
+
+## Run Deployment
+ansible-playbook -i inventories/production/hosts.yml playbooks/provision.yml
+
+## Test Deployment
+
+App health:
+curl http://192.168.56.3:8000/health
+
+Nginx:
+curl http://192.168.56.3/
+
+Containers:
+docker ps
+
+## What is installed
+- Docker app stack (app, postgres, redis)
+- Nginx reverse proxy
+- UFW firewall
+- Journald config
+- Backup cron job
+- Systemd service
+
+## Notes
+- Safe to rerun playbook
+- "already exists" messages are normal
+
+
+
+
+
 # Avidity Cloud Infrastructure Engineer Test
 
 1. Clone this repository

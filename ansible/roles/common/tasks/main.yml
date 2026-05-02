@@ -1,0 +1,17 @@
+- name: Update apt cache
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+  become: true
+
+- name: Install base packages
+  apt:
+    name:
+      - curl
+      - git
+      - vim
+      - ca-certificates
+      - gnupg
+    state: present
+  become: true
+  

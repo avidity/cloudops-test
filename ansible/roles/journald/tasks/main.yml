@@ -1,0 +1,17 @@
+- name: Enable persistent storage
+  ansible.builtin.lineinfile:
+    path: /etc/systemd/journald.conf
+    regexp: '^#?Storage='
+    line: 'Storage=persistent'
+
+- name: Set max retention (6 months)
+  ansible.builtin.lineinfile:
+    path: /etc/systemd/journald.conf
+    regexp: '^#?MaxRetentionSec='
+    line: 'MaxRetentionSec=6month'
+
+- name: Restart journald
+  ansible.builtin.service:
+    name: systemd-journald
+    state: restarted
+    

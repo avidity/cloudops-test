@@ -1,0 +1,69 @@
+name: Ansible CI/CD
+
+on:
+  push:
+    branches:
+      - aq-test # keep it only for test, then remove it and uncomment the following lines
+      - staging
+      - main
+  pull_request:
+
+jobs:
+  lint:
+    name: Lint Ansible
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install ansible ansible-lint
+
+      - name: Run ansible-lint
+        run: ansible-lint ansible/ || true
+## ignore the deploy step for now, as it requires secrets and server setup. You can uncomment and configure it once you have the necessary infrastructure in place.
+
+  # deploy:
+  #   name: Deploy (staging/production)
+  #   runs-on: ubuntu-latest
+  #   needs: lint
+
+  #   environment: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
+
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v4
+
+  #     - name: Setup SSH key
+  #       run: |
+  #         mkdir -p ~/.ssh
+  #         echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+  #         chmod 600 ~/.ssh/id_rsa
+
+  #     - name: Add host to known hosts
+  #       run: ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
+
+  #     - name: Select inventory
+  #       run: |
+  #         if [ "${{ github.ref_name }}" = "main" ]; then
+  #           echo "INVENTORY=production" >> $GITHUB_ENV
+  #         else
+  #           echo "INVENTORY=staging" >> $GITHUB_ENV
+  #         fi
+
+  #     - name: Run Ansible deploy
+  #       run: |
+  #         ansible-playbook \
+  #           -i ansible/inventories/$INVENTORY/hosts.yml \
+  #           ansible/playbooks/provision.yml \
+  #           --private-key ~/.ssh/id_rsa
+
+  #     - name: Database migration step (optional)
+  #       run: echo "Run migrations here if needed"

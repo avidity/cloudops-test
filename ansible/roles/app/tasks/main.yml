@@ -1,0 +1,15 @@
+- name: Create app directory
+  file:
+    path: /opt/app
+    state: directory
+
+- name: Deploy docker-compose
+  template:
+    src: docker-compose.yml.j2
+    dest: /opt/app/docker-compose.yml
+
+- name: Start stack
+  community.docker.docker_compose_v2:
+    project_src: /opt/app
+    state: present
+    

@@ -1,0 +1,12 @@
+- name: Create app database
+  ansible.builtin.command: sudo -u postgres createdb app
+  ignore_errors: true
+
+- name: Create app user
+  ansible.builtin.command: sudo -u postgres psql -c "CREATE USER app_user WITH PASSWORD '{{ db_password }}';"
+  ignore_errors: true
+
+- name: Create readonly user
+  ansible.builtin.command: sudo -u postgres psql -c "CREATE USER app_readonly WITH PASSWORD 'strongpassword';"
+  ignore_errors: true
+  

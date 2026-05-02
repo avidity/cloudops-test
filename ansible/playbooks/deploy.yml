@@ -1,0 +1,18 @@
+- name: Deploy application update
+  hosts: all
+  become: true
+
+  tasks:
+    - name: Pull latest code / image update
+      command: docker compose pull
+      args:
+        chdir: /opt/app
+
+    - name: Restart stack
+      command: docker compose up -d
+      args:
+        chdir: /opt/app
+
+    - name: Run DB migrations (pseudo)
+      command: echo "run migrations here"
+      

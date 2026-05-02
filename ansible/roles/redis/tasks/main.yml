@@ -1,0 +1,24 @@
+- name: Install Redis
+  ansible.builtin.apt:
+    name: redis-server
+    state: present
+    update_cache: yes
+
+- name: Enable AOF persistence
+  ansible.builtin.lineinfile:
+    path: /etc/redis/redis.conf
+    regexp: '^appendonly'
+    line: 'appendonly yes'
+
+- name: Enable Redis persistence save
+  ansible.builtin.lineinfile:
+    path: /etc/redis/redis.conf
+    regexp: '^#?save '
+    line: 'save 900 1'
+
+- name: Restart Redis
+  ansible.builtin.service:
+    name: redis-server
+    state: restarted
+    enabled: true
+    

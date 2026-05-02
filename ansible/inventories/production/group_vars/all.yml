@@ -1,0 +1,4 @@
+db_name: app
+db_user: app
+db_password: strongpassword
+app_image: app:latest
