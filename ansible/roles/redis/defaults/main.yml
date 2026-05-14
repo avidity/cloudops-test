@@ -1,0 +1,6 @@
+---
+redis_version: "8"
+redis_port: 6379
+redis_data_dir: /opt/storage/redis
+redis_maxmemory: 256mb
+redis_maxmemory_policy: allkeys-lru

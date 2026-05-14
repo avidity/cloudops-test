@@ -1,0 +1,15 @@
+---
+- name: Install base packages
+  ansible.builtin.apt:
+    name:
+      - curl
+      - gnupg
+      - ca-certificates
+      - apt-transport-https
+      - python3-pip
+      - acl
+      - git
+      - unzip
+      - awscli
+    state: present
+    update_cache: true

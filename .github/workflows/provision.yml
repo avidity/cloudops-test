@@ -1,0 +1,98 @@
+---
+name: Provision Infrastructure
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        default: staging
+        type: choice
+        options:
+          - staging
+          - production
+      limit:
+        description: "Ansible --limit (host pattern)"
+        required: false
+        default: ""
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install linting tools
+        run: |
+          pip install ansible ansible-lint
+          sudo apt-get install -y shellcheck
+
+      - name: Run ansible-lint
+        working-directory: ansible
+        run: ansible-lint playbooks/provision.yml --profile production
+
+      - name: Run shellcheck on backup script template
+        run: |
+          shellcheck --shell=bash --severity=warning \
+            ansible/roles/backup/templates/db_backup.sh.j2 \
+            ansible/roles/backup/templates/app-reload.sh.j2 || true
+
+  provision:
+    name: Provision (${{ github.event.inputs.environment }})
+    needs: lint
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+    concurrency:
+      group: provision-${{ github.event.inputs.environment }}
+      cancel-in-progress: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Ansible and collections
+        run: |
+          pip install ansible
+          ansible-galaxy collection install \
+            community.general \
+            community.postgresql \
+            community.docker \
+            ansible.posix
+
+      - name: Write Ansible Vault password
+        run: echo "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > ~/.vault_pass
+        shell: bash
+
+      - name: Write SSH private key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+      - name: Run provision playbook
+        working-directory: ansible
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: "False"
+        run: |
+          ansible-playbook playbooks/provision.yml \
+            --inventory inventory/${{ github.event.inputs.environment }} \
+            --vault-password-file ~/.vault_pass \
+            --private-key ~/.ssh/deploy_key \
+            ${{ github.event.inputs.limit != '' && format('--limit {0}', github.event.inputs.limit) || '' }} \
+            --diff
+
+      - name: Clean up secrets
+        if: always()
+        run: |
+          rm -f ~/.vault_pass ~/.ssh/deploy_key

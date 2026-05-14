@@ -1,0 +1,7 @@
+---
+- name: Install Nginx
+  import_tasks: install.yml
+- name: Configure Nginx
+  import_tasks: configure.yml
+- name: Configure TLS
+  import_tasks: tls.yml

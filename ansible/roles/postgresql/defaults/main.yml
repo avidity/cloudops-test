@@ -1,0 +1,7 @@
+---
+postgresql_version: "18"
+postgresql_port: 5432
+postgresql_db: app
+postgresql_data_dir: /opt/storage/postgresql
+postgresql_max_connections: 100
+postgresql_shared_buffers: 256MB

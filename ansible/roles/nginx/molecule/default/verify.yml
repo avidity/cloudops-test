@@ -1,0 +1,51 @@
+---
+- name: Verify nginx
+  hosts: all
+  become: true
+  tasks:
+    - name: nginx service is running and enabled
+      ansible.builtin.service_facts:
+
+    - name: assert nginx running
+      ansible.builtin.assert:
+        that:
+          - "'nginx' in services"
+          - "services['nginx'].state == 'running'"
+          - "services['nginx'].status == 'enabled'"
+
+    - name: nginx config passes syntax check
+      ansible.builtin.command: nginx -t
+      changed_when: false
+
+    - name: stub_status is reachable from localhost
+      ansible.builtin.uri:
+        url: http://localhost/nginx_status
+        status_code: 200
+      register: stub_result
+
+    - name: stub_status returns active connections
+      ansible.builtin.assert:
+        that: "'Active connections' in stub_result.content"
+
+    - name: stub_status is NOT reachable from external IP (firewall/deny)
+      ansible.builtin.command: >
+        curl -s -o /dev/null -w "%{http_code}"
+        --interface eth0
+        http://{{ ansible_default_ipv4.address }}/nginx_status
+      register: external_status
+      changed_when: false
+
+    - name: assert external access blocked
+      ansible.builtin.assert:
+        that: external_status.stdout == "403"
+
+    - name: HTTP redirects to HTTPS
+      ansible.builtin.uri:
+        url: http://localhost/
+        follow_redirects: none
+        status_code: 301
+      register: redirect_result
+
+    - name: assert redirect location is https
+      ansible.builtin.assert:
+        that: "'https' in redirect_result.location"

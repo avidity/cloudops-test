@@ -1,0 +1,17 @@
+[Unit]
+Description=Reload {{ app_name }} application (zero-downtime deploy)
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory={{ app_dir }}
+User={{ deploy_user }}
+Group={{ deploy_group }}
+ExecStart=/usr/local/bin/app-reload.sh
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier={{ app_name }}-reload
+
+[Install]
+WantedBy=multi-user.target

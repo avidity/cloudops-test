@@ -1,0 +1,15 @@
+#!/bin/bash
+# Deployed by Ansible — certbot deploy hook
+# Runs after every successful renewal; reloads nginx to pick up the new cert.
+# Certbot calls all scripts in /etc/letsencrypt/renewal-hooks/deploy/ after renewal.
+
+set -euo pipefail
+
+# Bail out early if nginx isn't running (e.g. during initial provision)
+if ! systemctl is-active --quiet nginx; then
+  echo "nginx is not running, skipping reload" >&2
+  exit 0
+fi
+
+systemctl reload nginx
+echo "nginx reloaded after cert renewal for {{ certbot_domain }}"

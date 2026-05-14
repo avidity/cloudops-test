@@ -1,0 +1,21 @@
+global:
+  scrape_interval: {{ prometheus_scrape_interval }}
+  evaluation_interval: {{ prometheus_evaluation_interval }}
+
+scrape_configs:
+  - job_name: node
+    static_configs:
+      - targets: ['localhost:{{ node_exporter_port }}']
+
+  - job_name: nginx
+    static_configs:
+      - targets: ['localhost:{{ nginx_exporter_port }}']
+
+  - job_name: prometheus
+    static_configs:
+      - targets: ['localhost:{{ prometheus_port }}']
+
+  # postgres_exporter — uncomment once installed
+  # - job_name: postgres
+  #   static_configs:
+  #     - targets: ['localhost:{{ postgres_exporter_port }}']

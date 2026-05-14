@@ -1,0 +1,30 @@
+listen_addresses = 'localhost'
+port = {{ postgresql_port }}
+
+# Memory
+shared_buffers = 256MB
+work_mem = 4MB
+maintenance_work_mem = 64MB
+effective_cache_size = 1GB
+
+# WAL
+wal_level = replica
+max_wal_size = 1GB
+min_wal_size = 80MB
+checkpoint_completion_target = 0.9
+
+# Connections
+max_connections = 100
+
+# Logging
+log_destination = 'stderr'
+logging_collector = on
+log_directory = 'log'
+log_filename = 'postgresql-%Y-%m-%d.log'
+log_rotation_age = 1d
+log_rotation_size = 0
+log_min_duration_statement = 1000
+log_line_prefix = '%t [%p]: [%l-1] user=%u,db=%d,app=%a,client=%h '
+
+# Data directory override
+data_directory = '{{ postgresql_data_dir }}'

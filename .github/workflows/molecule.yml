@@ -1,0 +1,53 @@
+---
+name: Molecule Tests
+
+on:
+  pull_request:
+    paths:
+      - "ansible/roles/**"
+      - ".github/workflows/molecule.yml"
+  push:
+    branches: [main]
+    paths:
+      - "ansible/roles/**"
+
+jobs:
+  molecule:
+    name: Test role ${{ matrix.role }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        role:
+          - common
+          - nginx
+          # - postgresql  # TODO: needs postgres container setup
+          # - redis
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Molecule and dependencies
+        run: |
+          pip install ansible molecule molecule-plugins[docker] pytest testinfra
+
+      - name: Install Ansible collections
+        run: |
+          ansible-galaxy collection install \
+            community.general ansible.posix community.docker
+
+      - name: Run Molecule
+        working-directory: ansible/roles/${{ matrix.role }}
+        run: molecule test
+
+      - name: Upload molecule logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: molecule-logs-${{ matrix.role }}
+          path: ~/.cache/molecule/

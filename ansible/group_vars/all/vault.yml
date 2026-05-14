@@ -1,0 +1,17 @@
+# ansible-vault encrypted — edit with: ansible-vault edit group_vars/all/vault.yml
+# unencrypted structure lives in vault.example.yml (gitignored)
+# encrypt with: ansible-vault encrypt group_vars/all/vault.yml
+---
+vault_deploy_ssh_public_key: "VAULT_ENCRYPTED"
+vault_ci_ssh_public_key: "VAULT_ENCRYPTED"
+vault_postgresql_app_user: "VAULT_ENCRYPTED"
+vault_postgresql_app_password: "VAULT_ENCRYPTED"
+vault_postgresql_readonly_user: "VAULT_ENCRYPTED"
+vault_postgresql_readonly_password: "VAULT_ENCRYPTED"
+vault_redis_password: "VAULT_ENCRYPTED"
+vault_nginx_ssl_cert: "VAULT_ENCRYPTED"
+vault_nginx_ssl_key: "VAULT_ENCRYPTED"
+vault_s3_bucket: "VAULT_ENCRYPTED"
+vault_s3_endpoint: "VAULT_ENCRYPTED"
+vault_s3_access_key: "VAULT_ENCRYPTED"
+vault_s3_secret_key: "VAULT_ENCRYPTED"

@@ -1,42 +1,225 @@
-# Avidity Cloud Infrastructure Engineer Test
+# Avidity Cloud Infrastructure Engineer Test — Solution
 
-1. Clone this repository
-2. Make the necessary changes / deliverables
-3. Create a Pull Request or e-mail us the link to your fork for evaluation
+This repository is my solution to the Avidity CloudOps Engineer test. The objective was to build Ansible playbooks and automation for provisioning and deploying a containerised web application on Debian hosts, with a GitHub Actions CI/CD pipeline supporting multiple environments.
 
-## Description
+Stack: Debian + Docker + Nginx + PostgreSQL + Redis, managed with Ansible and Terraform.
 
-This test objective is to serve as a base for discussion where we can assess your expertise about Ansible and the automation of Containerized Applications. The submitted code does not have to be syntactically correct or executable. We are looking at the overall picture of code organization and the ability to create code that could potentially be integrated into production grade environments. Pseudo results and/or outputs for tasks are okay to be expected in certain requirements. You are not expected to deliver a single file, but multiple files that deliver the overall objective. 
+---
 
-* Assume that the playbooks will be run on Debian-derived hosts.
-* Assume the web application is reachable with **TLS/HTTPS only**.
-* Assume the host has **secure private access**, allowing only access with ssh-keys pulled from a specific directory.
-* Assume that software configuration can be changed using ansible variables per host and group.
+## What was built
 
-Clone the repository https://github.com/avidity/cloudops-test
+Each requirement from the test spec is addressed as follows:
 
-Create an ansible-playbook to provision a host to serve web application requests. 
-This application requires:
-* `PostgreSQL +18` with the custom configuration and two unique users, one with all privileges in the database `app` and another with only `read-only`.
-* `Redis +8` with the custom configuration settings and disk persistence.
-* `Nginx +1.29` with the custom configuration settings to serve the application and proxy requests to it. Configure an Nginx status page (`stub_status`) restricted to local access for monitoring.
-* Use **Ansible Vault** or a mock secret manager to handle sensitive data like database credentials and SSH private keys.
+| Requirement | Implementation |
+|-------------|---------------|
+| PostgreSQL 18+ with custom config, full-privileges user + read-only user | `ansible/roles/postgresql/` |
+| Redis 8+ with custom config and disk persistence (RDB + AOF) | `ansible/roles/redis/` |
+| Nginx 1.29+ reverse proxy, `stub_status` restricted to localhost | `ansible/roles/nginx/` |
+| Ansible Vault for secrets (credentials, SSH keys) | `ansible/group_vars/all/vault.yml` + `roles/secrets/` |
+| `deploy` user with sudo, SSH-key only access | `ansible/roles/common/tasks/users.yml` |
+| Application in `/opt/app`, volumes in `/opt/storage` | `ansible/group_vars/all/vars.yml` |
+| Docker 29+ with docker-compose, healthchecks on all services | `ansible/roles/app/templates/docker-compose.yml.j2` |
+| App binds on `127.0.0.1:8000` only | `ansible/roles/nginx/templates/app.conf.j2` |
+| Image built from git repo, fallback to `app:latest` | `ansible/roles/app/tasks/deploy.yml` |
+| Journald: daily log files, 6-month retention | `ansible/roles/common/tasks/journald.yml` |
+| Application logs in JSON format | `docker-compose.yml.j2` + `nginx.conf.j2` |
+| Custom systemd service for application reloads | `ansible/roles/app/templates/app-reload.service.j2` |
+| Firewall: SSH / HTTP / HTTPS only | `ansible/roles/common/tasks/firewall.yml` |
+| sshd: no root login, no password authentication | `ansible/roles/common/tasks/ssh.yml` |
+| Hourly compressed DB backup uploaded to S3-compatible bucket | `ansible/roles/backup/templates/db_backup.sh.j2` |
+| Provision playbook | `ansible/playbooks/provision.yml` |
+| Deploy playbook | `ansible/playbooks/deploy.yml` |
+| GitHub Actions with `ansible-lint` + `shellcheck` | `.github/workflows/security.yml` |
+| Staging and production environments via GitHub Environments | `.github/workflows/deploy.yml` |
+| Database migration step (Rails / Django) | `ansible/playbooks/deploy.yml` |
 
-Create an user called `deploy` which will be used to access the server and release new application versions.
-User `deploy` should be able to elevate privileges via `sudo` and only be accessible with ssh-key.
-Application contents are stored in `/opt/app`.
-The application runs on `Docker +29`. 
-Use `docker-compose` to manage the application stack (app, postgres, redis) and implement **Docker healthchecks** for all services to ensure availability before Nginx starts proxying.
-Application volumes are stored in `/opt/storage`.
-Application binds on localhost port only at `127.0.0.1:8000`.
-The application runs on an image **based on the code from a git repository**, in case no tag is provided, use `app:latest`.
-Configure Journalctl to make daily log files and retention of 6 months.
-Application logs should be in **JSON format** for structured logging.
-Create a custom Systemd service to handle application reloads.
-Create custom firewall rules to block any traffic that's not ssh/http/https
-Configure sshd to not allow root login nor password logins.
-Create a custom script that generates a compressed full database backup hourly and uploads it to an **S3-compatible storage bucket**.
+Beyond the spec, the solution also includes: Terraform IaC (Hetzner + AWS), Let's Encrypt TLS renewal, PgBouncer connection pooling, Prometheus + Grafana monitoring, auto-rollback on failed deploys, Molecule role tests, and network segmentation between app and database tiers.
 
-1. Create an ansible-playbook to deploy new application updates.
-2. Use Github Actions to make automatic deployment on code changes. The pipeline must include **linting steps** (`ansible-lint`, `shellcheck`) and handle **multiple environments** (e.g., staging vs production) using GitHub Environments and Secrets.
-3. The deployment process should be able to handle database migration from frameworks that support ORMs like Rails or Django with a pseudo step.
+---
+
+## Architecture
+
+```
+                        Internet
+                           │
+                    ┌──────▼──────┐
+                    │    Nginx    │  443 / 80
+                    │  (TLS, LE)  │
+                    └──────┬──────┘
+                           │ 127.0.0.1:8000
+                    ┌──────▼──────┐
+                    │     App     │  Docker — frontend network
+                    │  container  │
+                    └──────┬──────┘
+                           │  backend network (internal: true)
+              ┌────────────┴────────────┐
+              │                         │
+       ┌──────▼──────┐          ┌──────▼──────┐
+       │  PostgreSQL  │          │    Redis    │
+       │  via PgBouncer          │             │
+       │  port 6432  │          │  port 6379  │
+       └─────────────┘          └─────────────┘
+
+       DB server — private subnet only, no public IP
+```
+
+**Production: two hosts.** App server has a public IP. DB server lives on a private subnet — unreachable from the internet.
+**Staging: one host** running everything.
+
+---
+
+## Repository layout
+
+```
+.
+├── terraform/
+│   ├── providers/
+│   │   ├── hetzner/        # Hetzner Cloud (default)
+│   │   └── aws/            # AWS — same output interface, swap in environments/
+│   └── environments/
+│       ├── staging/        # 1x cx22, 14-day backup retention
+│       └── production/     # 2x cx32, prevent_destroy=true, 30-day retention
+│
+├── ansible/
+│   ├── playbooks/
+│   │   ├── provision.yml   # full server setup — run once per environment
+│   │   └── deploy.yml      # deploy new version — rolling, with auto-rollback
+│   ├── roles/
+│   │   ├── secrets/        # pluggable secrets: ansible-vault | HashiCorp Vault | AWS SSM
+│   │   ├── common/         # deploy user, SSH hardening, UFW, journald
+│   │   ├── docker/         # Docker Engine 29 + Compose
+│   │   ├── postgresql/     # PostgreSQL 18, app user + readonly user
+│   │   ├── pgbouncer/      # connection pooling on :6432
+│   │   ├── redis/          # Redis 8, RDB + AOF
+│   │   ├── nginx/          # Nginx 1.29, TLS, reverse proxy, stub_status
+│   │   ├── certbot/        # Let's Encrypt, auto-renewal via systemd timer
+│   │   ├── app/            # docker-compose stack + systemd service
+│   │   ├── backup/         # hourly pg_dump → S3
+│   │   └── monitoring/     # Prometheus + Grafana + node/nginx exporters
+│   └── group_vars/all/
+│       ├── vars.yml        # all non-secret config
+│       ├── vault.yml       # encrypted (ansible-vault) — gitignored
+│       └── vault.example.yml
+│
+└── .github/workflows/
+    ├── security.yml        # Trivy + ansible-lint + shellcheck
+    ├── molecule.yml        # role tests in Docker containers
+    ├── terraform.yml       # plan on PR, posts diff as comment
+    └── deploy.yml          # auto → staging, manual + approval → production
+```
+
+---
+
+## Getting started
+
+### Prerequisites
+
+```bash
+brew install terraform
+pip install ansible ansible-lint molecule molecule-plugins[docker]
+ansible-galaxy collection install -r ansible/requirements.yml
+```
+
+### 1. Provision infrastructure
+
+```bash
+cd terraform/environments/staging
+cp terraform.tfvars.example terraform.tfvars   # fill in token, ssh key, domain
+terraform init && terraform apply
+# writes ansible/inventory/staging/hosts.yml automatically
+```
+
+### 2. Set up secrets
+
+```bash
+cp ansible/group_vars/all/vault.example.yml /tmp/vault.yml
+# edit /tmp/vault.yml with real passwords and keys
+ansible-vault encrypt /tmp/vault.yml --output ansible/group_vars/all/vault.yml
+```
+
+### 3. Provision servers
+
+```bash
+cd ansible
+ansible-playbook playbooks/provision.yml \
+  --inventory inventory/staging \
+  --vault-password-file ~/.vault_pass
+```
+
+### 4. Deploy
+
+```bash
+ansible-playbook playbooks/deploy.yml \
+  --inventory inventory/staging \
+  --vault-password-file ~/.vault_pass \
+  --extra-vars "app_image_tag=v1.0.0"
+```
+
+---
+
+## Deployment flow
+
+```
+push to main
+     │
+     ▼
+lint + Trivy scan
+     │
+     ▼
+deploy → staging
+     ├─ pull code + build image
+     ├─ backup DB
+     ├─ run migrations (Rails / Django auto-detected)
+     ├─ reload app via systemd
+     └─ health check
+          ├── ✅ pass → done
+          └── ❌ fail → auto-rollback to previous image
+     │
+     ▼
+manual trigger → production  (requires GitHub Environment approval)
+     └─ same steps, serial: 1 (one host at a time)
+```
+
+---
+
+## Secrets
+
+Controlled by `secrets_backend` in `group_vars/all/vars.yml`:
+
+| Value | When to use |
+|-------|-------------|
+| `ansible_vault` | local dev |
+| `vault` | HashiCorp Vault |
+| `ssm` | AWS SSM Parameter Store |
+
+Changing backend requires one variable change — nothing else.
+
+---
+
+## Moving to a different cloud
+
+Change the `source` in `terraform/environments/<env>/main.tf`:
+
+```hcl
+# Hetzner → AWS
+source = "../../providers/aws/compute"   # was: providers/hetzner/compute
+```
+
+Output keys are identical across providers. Ansible is cloud-agnostic — no changes needed there.
+
+---
+
+## GitHub Secrets needed
+
+`ANSIBLE_VAULT_PASSWORD`, `SSH_PRIVATE_KEY`, `HCLOUD_TOKEN`,
+`TF_STATE_ACCESS_KEY`, `TF_STATE_SECRET_KEY`, `SLACK_WEBHOOK_URL`
+
+---
+
+## Tests
+
+```bash
+cd ansible && ansible-lint playbooks/provision.yml
+cd ansible/roles/common && molecule test
+cd ansible/roles/nginx  && molecule test
+```

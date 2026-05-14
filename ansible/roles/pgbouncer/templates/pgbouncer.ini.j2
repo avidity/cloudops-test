@@ -1,0 +1,35 @@
+[databases]
+# app db → local postgres. Add more databases here if needed.
+{{ pgbouncer_db_name }} = host={{ pgbouncer_db_host }} port={{ pgbouncer_db_port }} dbname={{ pgbouncer_db_name }}
+
+[pgbouncer]
+listen_addr = {{ pgbouncer_listen_addr }}
+listen_port = {{ pgbouncer_port }}
+
+# Transaction pooling is the sweet spot for most web apps — connections are
+# returned to the pool between statements, not just between transactions.
+# Caveat: advisory locks, LISTEN/NOTIFY, and SET LOCAL won't work reliably.
+# Switch to session pooling if the app relies on those features.
+pool_mode = {{ pool_mode }}
+
+auth_type = md5
+auth_file = {{ pgbouncer_config_dir }}/userlist.txt
+
+# Logging — goes to syslog via the pgbouncer service unit
+logfile =
+syslog = 1
+syslog_ident = pgbouncer
+
+# Pool sizing
+max_client_conn = {{ max_client_conn }}
+default_pool_size = {{ pool_size }}
+reserve_pool_size = {{ reserve_pool_size }}
+reserve_pool_timeout = {{ reserve_pool_timeout }}
+
+# Connection timeouts (seconds)
+server_idle_timeout = {{ server_idle_timeout }}
+client_idle_timeout = {{ client_idle_timeout }}
+
+# Admin interface — unix socket only, connect with: psql -U pgbouncer -h /run/postgresql pgbouncer
+admin_users = pgbouncer
+unix_socket_dir = /run/postgresql

@@ -1,0 +1,5 @@
+---
+- name: Install monitoring exporters
+  import_tasks: install.yml
+- name: Configure Prometheus and Grafana
+  import_tasks: configure.yml

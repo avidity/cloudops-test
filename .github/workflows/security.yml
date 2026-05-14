@@ -1,0 +1,79 @@
+---
+name: Security Scanning
+
+on:
+  push:
+    branches: [main, "release/**"]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 6 * * 1"  # mondays 06:00 UTC
+
+jobs:
+  trivy-image:
+    name: Trivy image scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t app:scan app/
+
+      - name: Scan image for vulnerabilities
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: app:scan
+          format: sarif
+          output: trivy-results.sarif
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+
+      - name: Upload SARIF to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-results.sarif
+
+  trivy-iac:
+    name: Trivy IaC scan (Terraform)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Scan Terraform configs
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: config
+          scan-ref: terraform/
+          severity: CRITICAL,HIGH
+          exit-code: "0"  # warn only for now, don't block
+
+  ansible-lint:
+    name: Ansible lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install ansible-lint
+        run: pip install ansible ansible-lint
+
+      - name: Run ansible-lint
+        working-directory: ansible
+        run: ansible-lint --profile production
+
+  shellcheck:
+    name: Shellcheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run shellcheck on scripts
+        run: |
+          shellcheck --shell=bash --severity=warning \
+            ansible/roles/backup/templates/db_backup.sh.j2 \
+            ansible/roles/backup/templates/app-reload.sh.j2 || true

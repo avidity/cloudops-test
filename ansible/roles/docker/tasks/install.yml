@@ -1,0 +1,66 @@
+---
+- name: Add Docker APT signing key
+  ansible.builtin.apt_key:
+    url: https://download.docker.com/linux/debian/gpg
+    state: present
+
+- name: Add Docker APT repository
+  ansible.builtin.apt_repository:
+    repo: "deb [arch=amd64] https://download.docker.com/linux/debian {{ ansible_distribution_release }} stable"
+    state: present
+    filename: docker
+
+- name: Install Docker Engine {{ docker_version }}
+  ansible.builtin.apt:
+    name:
+      - "docker-ce={{ docker_version }}"
+      - "docker-ce-cli={{ docker_version }}"
+      - containerd.io
+      - "docker-compose-plugin={{ docker_compose_version }}"
+    state: present
+    update_cache: true
+
+- name: Ensure Docker service is enabled and started
+  ansible.builtin.service:
+    name: docker
+    state: started
+    enabled: true
+
+- name: Add deploy user to docker group
+  ansible.builtin.user:
+    name: "{{ deploy_user }}"
+    groups: docker
+    append: true
+
+- name: Deploy Docker daemon configuration
+  ansible.builtin.copy:
+    dest: /etc/docker/daemon.json
+    content: |
+      {
+        "log-driver": "journald",
+        "log-opts": {
+          "tag": "{% raw %}{{.Name}}{% endraw %}"
+        },
+        "live-restore": true,
+        "userland-proxy": false
+      }
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart docker
+
+- name: Configure Docker log rotation via logrotate
+  ansible.builtin.copy:
+    dest: /etc/logrotate.d/docker-containers
+    content: |
+      /var/lib/docker/containers/*/*.log {
+        rotate 7
+        daily
+        compress
+        missingok
+        delaycompress
+        copytruncate
+      }
+    owner: root
+    group: root
+    mode: "0644"

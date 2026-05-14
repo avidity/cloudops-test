@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# Zero-downtime application reload via docker compose
+set -euo pipefail
+
+APP_DIR="{{ app_dir }}"
+APP_NAME="{{ app_name }}"
+IMAGE_TAG="{{ app_image_tag | default('latest') }}"
+
+log() {
+    echo "[$(date -Iseconds)] [${APP_NAME}-reload] $*"
+}
+
+log "Starting application reload (tag: ${IMAGE_TAG})"
+cd "${APP_DIR}"
+
+# Pull latest image
+log "Pulling image ${APP_NAME}:${IMAGE_TAG}"
+docker compose pull app
+
+# Run database migrations (pseudo step — adapt for Rails/Django)
+log "Running database migrations"
+docker compose run --rm app sh -c "
+    if command -v rails &>/dev/null; then
+        rails db:migrate
+    elif command -v python &>/dev/null && [ -f manage.py ]; then
+        python manage.py migrate --noinput
+    else
+        echo 'No migration runner detected — skipping'
+    fi
+"
+
+# Rolling restart: bring up new containers, then remove old ones
+log "Restarting application containers"
+docker compose up -d --remove-orphans --no-deps app
+
+log "Reload complete"

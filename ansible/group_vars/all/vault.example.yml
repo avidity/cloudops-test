@@ -1,0 +1,27 @@
+---
+# copy to vault.yml and encrypt: ansible-vault encrypt group_vars/all/vault.yml
+
+vault_deploy_ssh_public_key: "ssh-ed25519 AAAA... deploy@ci"
+vault_ssh_private_key_path: "/home/deploy/.ssh/id_ed25519"
+
+vault_postgresql_app_user: appuser
+vault_postgresql_app_password: "CHANGE_ME"
+vault_postgresql_readonly_user: readonly
+vault_postgresql_readonly_password: "CHANGE_ME"
+
+vault_redis_password: "CHANGE_ME"
+
+vault_s3_bucket: "mycompany-db-backups"
+vault_s3_endpoint: "https://s3.eu-north-1.amazonaws.com"
+vault_s3_access_key: "AKIAIOSFODNN7EXAMPLE"
+vault_s3_secret_key: "CHANGE_ME"
+
+# TLS cert/key — can also use certbot/ACME instead, this just needs to exist
+vault_nginx_ssl_cert: |
+  -----BEGIN CERTIFICATE-----
+  ...
+  -----END CERTIFICATE-----
+vault_nginx_ssl_key: |
+  -----BEGIN PRIVATE KEY-----
+  ...
+  -----END PRIVATE KEY-----

@@ -1,0 +1,31 @@
+---
+- name: Add Redis APT signing key
+  ansible.builtin.apt_key:
+    url: https://packages.redis.io/gpg
+    state: present
+
+- name: Add Redis APT repository
+  ansible.builtin.apt_repository:
+    repo: "deb https://packages.redis.io/deb {{ ansible_distribution_release }} main"
+    state: present
+    filename: redis
+
+- name: Install Redis {{ redis_version }}
+  ansible.builtin.apt:
+    name: "redis-server={{ redis_version }}*"
+    state: present
+    update_cache: true
+
+- name: Ensure Redis data directory exists
+  ansible.builtin.file:
+    path: "{{ redis_data_dir }}"
+    state: directory
+    owner: redis
+    group: redis
+    mode: "0750"
+
+- name: Ensure Redis service is enabled and started
+  ansible.builtin.service:
+    name: redis-server
+    state: started
+    enabled: true

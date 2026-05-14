@@ -1,0 +1,60 @@
+---
+- name: Verify common
+  hosts: all
+  become: true
+  tasks:
+    - name: deploy user exists
+      ansible.builtin.getent:
+        database: passwd
+        key: deploy
+      register: deploy_user_info
+
+    - name: deploy user is in sudo group
+      ansible.builtin.command: groups deploy
+      register: deploy_groups
+      changed_when: false
+
+    - name: assert sudo membership
+      ansible.builtin.assert:
+        that: "'sudo' in deploy_groups.stdout"
+
+    - name: sshd config has PermitRootLogin no
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        line: "PermitRootLogin no"
+        state: present
+      check_mode: true
+      register: root_login_check
+      failed_when: root_login_check.changed
+
+    - name: sshd config has PasswordAuthentication no
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        line: "PasswordAuthentication no"
+        state: present
+      check_mode: true
+      register: password_auth_check
+      failed_when: password_auth_check.changed
+
+    - name: journald config has 6-month retention
+      ansible.builtin.command: >
+        grep -q "MaxRetentionSec=6month" /etc/systemd/journald.conf
+      changed_when: false
+
+    - name: ufw is active
+      ansible.builtin.command: ufw status
+      register: ufw_status
+      changed_when: false
+
+    - name: assert ufw active
+      ansible.builtin.assert:
+        that: "'Status: active' in ufw_status.stdout"
+
+    - name: app and storage dirs exist with correct owner
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: dir_stat
+      loop:
+        - /opt/app
+        - /opt/storage
+      failed_when: not dir_stat.stat.exists or dir_stat.stat.pw_name != 'deploy'

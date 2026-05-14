@@ -1,0 +1,120 @@
+---
+- name: Create prometheus system user
+  ansible.builtin.user:
+    name: "{{ monitoring_user }}"
+    system: true
+    shell: /sbin/nologin
+    create_home: false
+
+- name: Ensure data dirs exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ monitoring_user }}"
+    group: "{{ monitoring_user }}"
+    mode: "0755"
+  loop:
+    - "{{ prometheus_data_dir }}"
+    - "{{ prometheus_config_dir }}"
+
+- name: Download and install node_exporter
+  ansible.builtin.unarchive:
+    src: "https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter_version }}/node_exporter-{{ node_exporter_version }}.linux-{{ monitoring_arch }}.tar.gz"
+    dest: /tmp
+    remote_src: true
+  register: node_exporter_download
+
+- name: Install node_exporter binary
+  ansible.builtin.copy:
+    src: "/tmp/node_exporter-{{ node_exporter_version }}.linux-{{ monitoring_arch }}/node_exporter"
+    dest: "{{ monitoring_bin_dir }}/node_exporter"
+    remote_src: true
+    owner: root
+    group: root
+    mode: "0755"
+  notify: Restart node_exporter
+
+- name: Install node_exporter systemd unit
+  ansible.builtin.template:
+    src: node_exporter.service.j2
+    dest: /etc/systemd/system/node_exporter.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd
+    - Restart node_exporter
+
+- name: Download and install nginx_exporter
+  ansible.builtin.get_url:
+    url: "https://github.com/nginxinc/nginx-prometheus-exporter/releases/download/v{{ nginx_exporter_version }}/nginx-prometheus-exporter_{{ nginx_exporter_version }}_linux_{{ monitoring_arch }}.tar.gz"
+    dest: /tmp/nginx_exporter.tar.gz
+    mode: "0644"
+
+- name: Extract nginx_exporter
+  ansible.builtin.unarchive:
+    src: /tmp/nginx_exporter.tar.gz
+    dest: "{{ monitoring_bin_dir }}"
+    remote_src: true
+    include:
+      - nginx-prometheus-exporter
+  notify: Restart nginx_exporter
+
+- name: Install nginx_exporter systemd unit
+  ansible.builtin.template:
+    src: nginx_exporter.service.j2
+    dest: /etc/systemd/system/nginx_exporter.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd
+    - Restart nginx_exporter
+
+- name: Download and install Prometheus
+  ansible.builtin.unarchive:
+    src: "https://github.com/prometheus/prometheus/releases/download/v{{ prometheus_version }}/prometheus-{{ prometheus_version }}.linux-{{ monitoring_arch }}.tar.gz"
+    dest: /tmp
+    remote_src: true
+
+- name: Install prometheus binaries
+  ansible.builtin.copy:
+    src: "/tmp/prometheus-{{ prometheus_version }}.linux-{{ monitoring_arch }}/{{ item }}"
+    dest: "{{ monitoring_bin_dir }}/{{ item }}"
+    remote_src: true
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - prometheus
+    - promtool
+  notify: Restart prometheus
+
+- name: Install prometheus systemd unit
+  ansible.builtin.template:
+    src: prometheus.service.j2
+    dest: /etc/systemd/system/prometheus.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd
+    - Restart prometheus
+
+- name: Add Grafana APT key and repo
+  ansible.builtin.apt_key:
+    url: https://apt.grafana.com/gpg.key
+    state: present
+
+- name: Add Grafana APT repository
+  ansible.builtin.apt_repository:
+    repo: "deb https://apt.grafana.com stable main"
+    state: present
+    filename: grafana
+
+- name: Install Grafana
+  ansible.builtin.apt:
+    name: "grafana={{ grafana_version }}"
+    state: present
+    update_cache: true
+  notify: Restart grafana

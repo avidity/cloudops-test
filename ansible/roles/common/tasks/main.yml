@@ -1,0 +1,11 @@
+---
+- name: Configure users and SSH keys
+  import_tasks: users.yml
+- name: Harden SSH daemon
+  import_tasks: ssh.yml
+- name: Configure firewall
+  import_tasks: firewall.yml
+- name: Configure journald
+  import_tasks: journald.yml
+- name: Install common packages
+  import_tasks: packages.yml

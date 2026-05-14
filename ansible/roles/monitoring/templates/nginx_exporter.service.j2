@@ -1,0 +1,12 @@
+[Unit]
+Description=Nginx Prometheus Exporter
+After=network-online.target
+
+[Service]
+ExecStart={{ monitoring_bin_dir }}/nginx-prometheus-exporter \
+  --nginx.scrape-uri=http://127.0.0.1/nginx_status \
+  --web.listen-address=127.0.0.1:{{ nginx_exporter_port }}
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,25 @@
+---
+- name: Deploy database backup script
+  ansible.builtin.template:
+    src: db_backup.sh.j2
+    dest: "{{ backup_script_path }}"
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Deploy app-reload script
+  ansible.builtin.template:
+    src: app-reload.sh.j2
+    dest: /usr/local/bin/app-reload.sh
+    owner: root
+    group: "{{ deploy_group }}"
+    mode: "0750"
+
+- name: Schedule hourly database backup via cron
+  ansible.builtin.cron:
+    name: "Hourly PostgreSQL backup to S3"
+    user: root
+    minute: "0"
+    hour: "*"
+    job: "{{ backup_script_path }} >> /var/log/db_backup.log 2>&1"
+    state: present

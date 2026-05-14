@@ -1,0 +1,13 @@
+[Unit]
+Description=Node Exporter
+After=network-online.target
+
+[Service]
+User={{ monitoring_user }}
+Group={{ monitoring_user }}
+ExecStart={{ monitoring_bin_dir }}/node_exporter \
+  --web.listen-address=127.0.0.1:{{ node_exporter_port }}
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

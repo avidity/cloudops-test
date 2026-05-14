@@ -1,0 +1,47 @@
+---
+- name: Install certbot and nginx plugin
+  ansible.builtin.apt:
+    name:
+      - certbot
+      - python3-certbot-nginx
+    state: present
+    update_cache: true
+
+# Stop nginx briefly if we're doing standalone (first-time cert, port 80 must be free).
+# If nginx is already running and the vhost exists, --nginx plugin handles everything
+# in-place. The block below tries --nginx first; if the cert already exists it's a no-op.
+- name: Check if cert already exists
+  ansible.builtin.stat:
+    path: "{{ certbot_cert_path }}"
+  register: _certbot_cert
+
+- name: Obtain certificate via certbot --nginx
+  ansible.builtin.command:
+    cmd: >
+      certbot --nginx
+      -d {{ certbot_domain }}
+      --non-interactive
+      --agree-tos
+      --email {{ certbot_email }}
+      {% if certbot_staging %}--staging{% endif %}
+      --redirect
+  changed_when: true
+  when: not _certbot_cert.stat.exists
+  notify: Reload nginx
+
+- name: Deploy post-renewal hook
+  ansible.builtin.template:
+    src: renewal-hook.sh.j2
+    dest: "{{ certbot_renewal_hook_path }}"
+    owner: root
+    group: root
+    mode: "0755"
+
+# The certbot package ships certbot.timer; just make sure it's running.
+# `systemctl list-timers certbot.timer` to verify on the host.
+- name: Enable certbot renewal timer
+  ansible.builtin.systemd:
+    name: certbot.timer
+    state: started
+    enabled: true
+    daemon_reload: true

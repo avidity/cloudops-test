@@ -1,0 +1,24 @@
+---
+pgbouncer_port: 6432
+pgbouncer_listen_addr: 127.0.0.1
+
+# Pool settings
+pool_mode: transaction
+pool_size: 20           # max server connections per (db, user) pair
+max_client_conn: 100    # total client connections pgbouncer accepts
+reserve_pool_size: 5
+reserve_pool_timeout: 3
+
+# Backend postgres — connects to the local postgresql role's instance
+pgbouncer_db_host: 127.0.0.1
+pgbouncer_db_port: "{{ postgresql_port | default(5432) }}"
+pgbouncer_db_name: "{{ postgresql_db | default('app') }}"
+
+# pgbouncer system user / config paths
+pgbouncer_user: pgbouncer
+pgbouncer_config_dir: /etc/pgbouncer
+pgbouncer_log_dir: /var/log/pgbouncer
+
+# Idle connection housekeeping
+server_idle_timeout: 600
+client_idle_timeout: 0   # disabled — let the app manage its own idle timeout

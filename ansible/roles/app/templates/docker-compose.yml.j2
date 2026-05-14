@@ -1,0 +1,108 @@
+---
+name: "{{ app_name }}"
+
+networks:
+  frontend:
+    driver: bridge
+    internal: false
+  backend:
+    driver: bridge
+    internal: true   # no outbound internet from db containers
+
+services:
+  app:
+    image: "{{ app_name }}:{{ app_image_tag | default('latest') }}"
+    build:
+      context: .
+    restart: unless-stopped
+    networks:
+      - frontend
+      - backend
+    ports:
+      - "{{ app_bind }}:{{ app_port }}:{{ app_port }}"
+    environment:
+{% if db_host is defined %}
+      # multi-host: postgres lives on the db server
+      DATABASE_URL: "postgresql://{{ vault_postgresql_app_user }}:{{ vault_postgresql_app_password }}@{{ db_host }}:{{ postgresql_port }}/{{ postgresql_db }}"
+      REDIS_URL: "redis://:{{ vault_redis_password }}@{{ db_host }}:{{ redis_port }}/0"
+{% else %}
+      DATABASE_URL: "postgresql://{{ vault_postgresql_app_user }}:{{ vault_postgresql_app_password }}@postgres:{{ postgresql_port }}/{{ postgresql_db }}"
+      REDIS_URL: "redis://:{{ vault_redis_password }}@redis:{{ redis_port }}/0"
+{% endif %}
+      LOG_FORMAT: json
+      RAILS_ENV: "{{ env | default('production') }}"
+    volumes:
+      - "{{ app_storage_dir }}/app:/app/storage"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:{{ app_port }}/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: journald
+      options:
+        tag: "{{ app_name }}-app"
+    security_opt:
+      - no-new-privileges:true
+    read_only: false
+    tmpfs:
+      - /tmp
+
+  postgres:
+    image: "postgres:{{ postgresql_version }}-bookworm"
+    restart: unless-stopped
+    networks:
+      - backend
+    # no ports: block — postgres never reachable from host or outside
+    environment:
+      POSTGRES_DB: "{{ postgresql_db }}"
+      POSTGRES_USER: "{{ vault_postgresql_app_user }}"
+      POSTGRES_PASSWORD: "{{ vault_postgresql_app_password }}"
+    volumes:
+      - "{{ app_storage_dir }}/postgresql:/var/lib/postgresql/data"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U {{ vault_postgresql_app_user }} -d {{ postgresql_db }}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    logging:
+      driver: journald
+      options:
+        tag: "{{ app_name }}-postgres"
+    security_opt:
+      - no-new-privileges:true
+
+  redis:
+    image: "redis:{{ redis_version }}-bookworm"
+    restart: unless-stopped
+    networks:
+      - backend
+    # no ports: block — redis never reachable from outside backend network
+    command: >
+      redis-server
+      --requirepass {{ vault_redis_password }}
+      --appendonly yes
+      --save 900 1
+      --save 300 10
+      --bind 0.0.0.0
+    volumes:
+      - "{{ app_storage_dir }}/redis:/data"
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "{{ vault_redis_password }}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    logging:
+      driver: journald
+      options:
+        tag: "{{ app_name }}-redis"
+    security_opt:
+      - no-new-privileges:true

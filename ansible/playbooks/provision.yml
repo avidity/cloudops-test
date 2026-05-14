@@ -1,0 +1,57 @@
+---
+- name: Provision web server
+  hosts: webservers
+  become: true
+  vars_files:
+    - ../group_vars/all/vars.yml
+    # vault.yml loaded as fallback — overridden by secrets role if backend=vault|ssm
+    - ../group_vars/all/vault.yml
+
+  pre_tasks:
+    - name: Update APT cache
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+  roles:
+    - role: secrets
+      tags: [always]            # secrets must load before every other role
+    - role: common
+      tags: [common, users, firewall, ssh, journald]
+    - role: docker
+      tags: [docker]
+    - role: postgresql
+      tags: [postgresql]
+    - role: pgbouncer
+      tags: [pgbouncer, postgresql]
+    - role: redis
+      tags: [redis]
+    - role: app
+      tags: [app]
+    - role: nginx
+      tags: [nginx]
+    - role: certbot
+      tags: [certbot, tls, nginx]
+    - role: backup
+      tags: [backup]
+    - role: monitoring
+      tags: [monitoring, observability]
+
+  post_tasks:
+    - name: Verify Nginx is responding
+      ansible.builtin.uri:
+        url: "https://{{ nginx_server_name }}/nginx_status"
+        validate_certs: false
+        status_code: 200
+      delegate_to: localhost
+      become: false
+      tags: [verify]
+
+    - name: Verify application is healthy
+      ansible.builtin.uri:
+        url: "https://{{ nginx_server_name }}/health"
+        validate_certs: false
+        status_code: 200
+      delegate_to: localhost
+      become: false
+      tags: [verify]

@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+DB="{{ postgresql_db }}"
+BACKUP_DIR="{{ backup_dir }}"
+BACKUP_FILE="${BACKUP_DIR}/${DB}_${TIMESTAMP}.sql.gz"
+S3_BUCKET="{{ backup_s3_bucket }}"
+S3_ENDPOINT="{{ backup_s3_endpoint }}"
+KEEP_DAYS=30
+
+export PGPASSWORD="{{ vault_postgresql_app_password }}"
+export AWS_ACCESS_KEY_ID="{{ vault_s3_access_key }}"
+export AWS_SECRET_ACCESS_KEY="{{ vault_s3_secret_key }}"
+
+log() { echo "[$(date -Iseconds)] $*"; }
+
+log "backing up ${DB}"
+mkdir -p "${BACKUP_DIR}"
+
+pg_dump \
+  --host=127.0.0.1 \
+  --port="{{ postgresql_port }}" \
+  --username="{{ vault_postgresql_app_user }}" \
+  --format=plain \
+  --no-password \
+  "${DB}" | gzip -9 > "${BACKUP_FILE}"
+
+log "created ${BACKUP_FILE} ($(du -sh "${BACKUP_FILE}" | cut -f1))"
+
+aws s3 cp "${BACKUP_FILE}" \
+  "s3://${S3_BUCKET}/db/${DB}/${TIMESTAMP}.sql.gz" \
+  --endpoint-url "${S3_ENDPOINT}" \
+  --storage-class STANDARD_IA
+
+log "uploaded to s3"
+
+# clean up old local files
+find "${BACKUP_DIR}" -name "${DB}_*.sql.gz" -mtime "+${KEEP_DAYS}" -delete
+
+# TODO: send slack/pagerduty notification on failure
+# would need to wrap this in a trap and post to webhook
+
+unset PGPASSWORD AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
+log "done"

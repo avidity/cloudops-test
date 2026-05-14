@@ -1,0 +1,9 @@
+# pgbouncer userlist — passwords are MD5-hashed (md5 + password + username)
+# Regenerate hash: echo -n "md5$(echo -n 'PASS+USER' | md5sum | cut -d' ' -f1)"
+# Or store plaintext in double quotes — pgbouncer accepts both.
+#
+# These vars come from vault.yml — never commit real credentials here.
+"{{ vault_postgresql_app_user }}" "{{ vault_postgresql_app_password }}"
+{% if vault_postgresql_readonly_user is defined %}
+"{{ vault_postgresql_readonly_user }}" "{{ vault_postgresql_readonly_password }}"
+{% endif %}

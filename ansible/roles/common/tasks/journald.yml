@@ -1,0 +1,15 @@
+---
+- name: Configure journald for daily log rotation and 6-month retention
+  ansible.builtin.blockinfile:
+    path: /etc/systemd/journald.conf
+    marker: "# {mark} ANSIBLE MANAGED"
+    block: |
+      [Journal]
+      Storage=persistent
+      Compress=yes
+      SplitMode={{ journald_split_mode }}
+      MaxRetentionSec={{ journald_max_retention_sec }}
+      MaxFileSec=1day
+      SystemMaxUse=4G
+      SystemKeepFree=1G
+  notify: Restart journald

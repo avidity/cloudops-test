@@ -1,0 +1,43 @@
+---
+app_name: app
+app_repo: "https://github.com/avidity/cloudops-test.git"
+app_image_tag: "latest"
+app_dir: /opt/app
+app_storage_dir: /opt/storage
+app_port: 8000
+app_bind: "127.0.0.1"
+
+deploy_user: deploy
+deploy_group: deploy
+deploy_ssh_keys_dir: /etc/ssh/authorized_keys
+
+postgresql_version: "18"
+postgresql_port: 5432
+postgresql_db: app
+postgresql_data_dir: /opt/storage/postgresql
+
+redis_version: "8"
+redis_port: 6379
+redis_data_dir: /opt/storage/redis
+
+# mainline repo uses a wildcard to tolerate minor bumps
+nginx_version: "1.29.*"
+nginx_server_name: "{{ inventory_hostname }}"
+nginx_ssl_cert_path: /etc/ssl/certs/app.crt
+nginx_ssl_key_path: /etc/ssl/private/app.key
+
+docker_version: "5:29.*"
+docker_compose_version: "2.*"
+
+backup_script_path: /usr/local/bin/db_backup.sh
+backup_dir: /opt/storage/backups
+backup_s3_bucket: "{{ vault_s3_bucket }}"
+backup_s3_endpoint: "{{ vault_s3_endpoint }}"
+
+journald_max_retention_sec: 6month
+journald_split_mode: day
+
+ufw_allowed_ports:
+  - { port: 22, proto: tcp, comment: "SSH" }
+  - { port: 80, proto: tcp, comment: "HTTP" }
+  - { port: 443, proto: tcp, comment: "HTTPS" }

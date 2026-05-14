@@ -1,0 +1,26 @@
+---
+- name: Ensure SSL directory exists
+  ansible.builtin.file:
+    path: /etc/ssl/private
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Deploy TLS certificate
+  ansible.builtin.copy:
+    content: "{{ vault_nginx_ssl_cert }}"
+    dest: "{{ nginx_ssl_cert_path }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload nginx
+
+- name: Deploy TLS private key
+  ansible.builtin.copy:
+    content: "{{ vault_nginx_ssl_key }}"
+    dest: "{{ nginx_ssl_key_path }}"
+    owner: root
+    group: root
+    mode: "0600"
+  notify: Reload nginx

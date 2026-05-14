@@ -1,0 +1,22 @@
+---
+- name: Deploy app-reload systemd service
+  ansible.builtin.template:
+    src: app-reload.service.j2
+    dest: /etc/systemd/system/app-reload.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd
+    - Enable app-reload service
+
+- name: Deploy app-reload systemd timer (optional)
+  ansible.builtin.template:
+    src: app.service.j2
+    dest: /etc/systemd/system/app.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd
+    - Enable app service

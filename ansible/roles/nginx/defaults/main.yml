@@ -1,0 +1,7 @@
+---
+nginx_version: "1.29.*"
+nginx_server_name: "{{ inventory_hostname }}"
+nginx_ssl_cert_path: /etc/ssl/certs/app.crt
+nginx_ssl_key_path: /etc/ssl/private/app.key
+app_bind: "127.0.0.1"
+app_port: 8000

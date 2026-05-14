@@ -1,0 +1,78 @@
+---
+- name: Create application database
+  community.postgresql.postgresql_db:
+    name: "{{ postgresql_db }}"
+    state: present
+  become: true
+  become_user: postgres
+
+- name: Create app user with full privileges
+  community.postgresql.postgresql_user:
+    name: "{{ vault_postgresql_app_user }}"
+    password: "{{ vault_postgresql_app_password }}"
+    state: present
+  become: true
+  become_user: postgres
+
+- name: Grant all privileges on database to app user
+  community.postgresql.postgresql_privs:
+    database: "{{ postgresql_db }}"
+    roles: "{{ vault_postgresql_app_user }}"
+    privs: ALL
+    type: database
+    state: present
+  become: true
+  become_user: postgres
+
+- name: Grant schema and table privileges to app user
+  community.postgresql.postgresql_privs:
+    database: "{{ postgresql_db }}"
+    roles: "{{ vault_postgresql_app_user }}"
+    privs: ALL
+    type: schema
+    objs: public
+    state: present
+  become: true
+  become_user: postgres
+
+- name: Create read-only user
+  community.postgresql.postgresql_user:
+    name: "{{ vault_postgresql_readonly_user }}"
+    password: "{{ vault_postgresql_readonly_password }}"
+    state: present
+  become: true
+  become_user: postgres
+
+- name: Grant CONNECT on database to readonly user
+  community.postgresql.postgresql_privs:
+    database: "{{ postgresql_db }}"
+    roles: "{{ vault_postgresql_readonly_user }}"
+    privs: CONNECT
+    type: database
+    state: present
+  become: true
+  become_user: postgres
+
+- name: Grant SELECT on all tables to readonly user
+  community.postgresql.postgresql_privs:
+    database: "{{ postgresql_db }}"
+    roles: "{{ vault_postgresql_readonly_user }}"
+    privs: SELECT
+    type: table
+    objs: ALL_IN_SCHEMA
+    schema: public
+    state: present
+  become: true
+  become_user: postgres
+
+- name: Set default privileges so readonly user gets SELECT on future tables
+  community.postgresql.postgresql_privs:
+    database: "{{ postgresql_db }}"
+    roles: "{{ vault_postgresql_readonly_user }}"
+    privs: SELECT
+    type: default_privs
+    objs: TABLES
+    schema: public
+    state: present
+  become: true
+  become_user: postgres

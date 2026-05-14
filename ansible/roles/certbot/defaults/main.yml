@@ -1,0 +1,11 @@
+---
+certbot_email: "{{ vault_certbot_email | default('ops@example.com') }}"
+certbot_domain: "{{ inventory_hostname }}"
+certbot_staging: false
+
+# path certbot writes certs to — referenced by nginx config
+certbot_cert_path: "/etc/letsencrypt/live/{{ certbot_domain }}/fullchain.pem"
+certbot_key_path: "/etc/letsencrypt/live/{{ certbot_domain }}/privkey.pem"
+
+# renewal hook script destination
+certbot_renewal_hook_path: /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh

@@ -1,0 +1,71 @@
+---
+- name: Create deploy group
+  ansible.builtin.group:
+    name: "{{ deploy_group }}"
+    state: present
+
+- name: Create deploy user (no shell login for CI key — only specific commands)
+  ansible.builtin.user:
+    name: "{{ deploy_user }}"
+    group: "{{ deploy_group }}"
+    groups: docker
+    shell: /bin/bash
+    home: "/home/{{ deploy_user }}"
+    create_home: true
+    state: present
+
+- name: Ensure authorized_keys directory exists
+  ansible.builtin.file:
+    path: "{{ deploy_ssh_keys_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+# Ops key — full interactive access (used by humans)
+- name: Deploy ops SSH public key
+  ansible.posix.authorized_key:
+    user: "{{ deploy_user }}"
+    key: "{{ vault_deploy_ssh_public_key }}"
+    key_options: "from=\"{{ ops_allowed_cidrs | join(',') }}\""
+    state: present
+    path: "{{ deploy_ssh_keys_dir }}/{{ deploy_user }}"
+
+# CI key — restricted: can only run the deploy script, no interactive shell
+- name: Deploy CI SSH public key (command-restricted)
+  ansible.posix.authorized_key:
+    user: "{{ deploy_user }}"
+    key: "{{ vault_ci_ssh_public_key }}"
+    key_options: 'command="/usr/local/bin/app-reload.sh",no-pty,no-agent-forwarding,no-X11-forwarding'
+    state: present
+    path: "{{ deploy_ssh_keys_dir }}/{{ deploy_user }}"
+  when: vault_ci_ssh_public_key is defined
+
+# Minimal sudo — only the exact commands deploy needs, not ALL
+- name: Restrict deploy user sudo to required commands only
+  ansible.builtin.copy:
+    dest: /etc/sudoers.d/deploy
+    content: |
+      # deploy can manage app services and docker — nothing else
+      {{ deploy_user }} ALL=(ALL) NOPASSWD: /bin/systemctl start app.service
+      {{ deploy_user }} ALL=(ALL) NOPASSWD: /bin/systemctl stop app.service
+      {{ deploy_user }} ALL=(ALL) NOPASSWD: /bin/systemctl restart app.service
+      {{ deploy_user }} ALL=(ALL) NOPASSWD: /bin/systemctl start app-reload.service
+      {{ deploy_user }} ALL=(ALL) NOPASSWD: /usr/bin/docker compose *
+      {{ deploy_user }} ALL=(ALL) NOPASSWD: /usr/local/bin/app-reload.sh
+    owner: root
+    group: root
+    mode: "0440"
+    validate: visudo -cf %s
+
+- name: Create app and storage directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_group }}"
+    mode: "0755"
+  loop:
+    - "{{ app_dir }}"
+    - "{{ app_storage_dir }}"
+    - "{{ backup_dir }}"

@@ -1,0 +1,34 @@
+---
+- name: Install pgbouncer
+  ansible.builtin.apt:
+    name: pgbouncer
+    state: present
+    update_cache: true
+
+# NOTE: after this role runs, the app's DATABASE_URL should point to pgbouncer:
+#   postgresql://user:pass@127.0.0.1:6432/app
+# not directly to postgres on 5432. Update app.env.j2 / vault accordingly.
+
+- name: Deploy pgbouncer.ini
+  ansible.builtin.template:
+    src: pgbouncer.ini.j2
+    dest: "{{ pgbouncer_config_dir }}/pgbouncer.ini"
+    owner: "{{ pgbouncer_user }}"
+    group: "{{ pgbouncer_user }}"
+    mode: "0640"
+  notify: Restart pgbouncer
+
+- name: Deploy userlist.txt
+  ansible.builtin.template:
+    src: userlist.txt.j2
+    dest: "{{ pgbouncer_config_dir }}/userlist.txt"
+    owner: "{{ pgbouncer_user }}"
+    group: "{{ pgbouncer_user }}"
+    mode: "0640"
+  notify: Restart pgbouncer
+
+- name: Ensure pgbouncer is enabled and started
+  ansible.builtin.service:
+    name: pgbouncer
+    state: started
+    enabled: true
