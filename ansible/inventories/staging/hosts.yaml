@@ -1,0 +1,7 @@
+---
+all:
+  children:
+    webservers:
+      hosts:
+        staging-app-01:
+          ansible_host: 10.0.1.10

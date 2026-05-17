@@ -1,0 +1,5 @@
+---
+env: production
+app_domain: app.example.com
+app_image_tag: latest
+backup_s3_bucket: s3://production-backups/postgres

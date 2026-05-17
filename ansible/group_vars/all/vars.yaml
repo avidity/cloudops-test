@@ -1,0 +1,29 @@
+---
+deploy_user: deploy
+deploy_group: deploy
+
+app_dir: /opt/app
+storage_dir: /opt/storage
+
+app_port: 8000
+app_bind: "127.0.0.1"
+app_repo: "https://github.com/avidity/cloudops-test.git"
+
+# appversions
+postgres_version: "18"
+redis_version: "8"
+nginx_version: "1.29"
+docker_version: "29"
+
+# postgres
+postgres_db: app
+
+# fw
+firewall_allowed_ports:
+  - 22
+  - 80
+  - 443
+
+# journald
+journald_max_retention: "6month"
+journald_split_mode: "day"

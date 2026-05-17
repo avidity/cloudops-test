@@ -1,0 +1,7 @@
+---
+all:
+  children:
+    webservers:
+      hosts:
+        prod-app-01:
+          ansible_host: 10.0.2.10
