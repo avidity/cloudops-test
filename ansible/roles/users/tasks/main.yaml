@@ -1,0 +1,44 @@
+---
+- name: Create deploy group
+  ansible.builtin.group:
+    name: "{{ deploy_group }}"
+    state: present
+
+- name: Create deploy user
+  ansible.builtin.user:
+    name: "{{ deploy_user }}"
+    group: "{{ deploy_group }}"
+    shell: /bin/bash
+    home: "/home/{{ deploy_user }}"
+    create_home: true
+    state: present
+
+- name: Add deploy user to sudoers
+  ansible.builtin.copy:
+    dest: "/etc/sudoers.d/{{ deploy_user }}"
+    content: "{{ deploy_user }} ALL=(ALL) NOPASSWD:ALL\n"
+    owner: root
+    group: root
+    mode: "0440"
+
+- name: Set up authorized_keys for deploy user
+  ansible.posix.authorized_key:
+    user: "{{ deploy_user }}"
+    key: "{{ vault_deploy_ssh_public_key }}"
+    state: present
+
+- name: Ensure /opt/app exists and is owned by deploy
+  ansible.builtin.file:
+    path: "{{ app_dir }}"
+    state: directory
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_group }}"
+    mode: "0755"
+
+- name: Ensure /opt/storage exists and is owned by deploy
+  ansible.builtin.file:
+    path: "{{ storage_dir }}"
+    state: directory
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_group }}"
+    mode: "0755"
