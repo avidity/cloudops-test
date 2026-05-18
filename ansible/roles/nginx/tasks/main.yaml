@@ -34,3 +34,12 @@
     name: nginx
     enabled: true
     state: started
+
+- name: check nginx is running
+  ansible.builtin.command: systemctl is-active nginx
+  register: nginx_status
+  changed_when: false
+
+- name: Report nginx status
+  ansible.builtin.debug:
+    msg: "Nginx is {{ nginx_status.stdout }}"
