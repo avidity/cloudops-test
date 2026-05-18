@@ -33,6 +33,7 @@ services:
     volumes:
       - "{{ storage_dir }}/postgres:/var/lib/postgresql/data"
       - "{{ app_dir }}/postgres/postgresql.conf:/etc/postgresql/postgresql.conf"
+      - "{{ app_dir }}/postgres/init-readonly-user.sql:/docker-entrypoint-initdb.d/init-readonly-user.sql"
     environment:
       - POSTGRES_DB={{ postgres_db }}
       - POSTGRES_USER={{ vault_postgres_app_user }}
