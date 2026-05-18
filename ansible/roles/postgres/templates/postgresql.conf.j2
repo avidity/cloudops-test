@@ -1,0 +1,10 @@
+listen_addresses = 'localhost'
+port = {{ postgres_port }}
+max_connections = {{ postgres_max_connections }}
+shared_buffers = {{ postgres_shared_buffers }}
+work_mem = {{ postgres_work_mem }}
+maintenance_work_mem = {{ postgres_maintenance_work_mem }}
+wal_level = {{ postgres_wal_level }}
+log_min_duration_statement = {{ postgres_log_min_duration }}
+log_timezone = 'UTC'
+timezone = 'UTC'

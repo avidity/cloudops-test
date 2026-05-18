@@ -1,0 +1,59 @@
+---
+services:
+  app:
+    image: "app:{{ app_image_tag }}"
+    build:
+      context: .
+    restart: unless-stopped
+    ports:
+      - "{{ app_bind }}:{{ app_port }}:8000"
+    volumes:
+      - "{{ storage_dir }}/app:/data"
+    environment:
+      - DATABASE_URL=postgresql://{{ vault_postgres_app_user }}:{{ vault_postgres_app_password }}@postgres:5432/{{ postgres_db }}
+      - REDIS_URL=redis://redis:{{ redis_port }}
+    logging:
+      driver: journald
+      options:
+        tag: "app"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000"]
+      interval: {{ app_healthcheck_interval }}
+      timeout: {{ app_healthcheck_timeout }}
+      retries: {{ app_healthcheck_retries }}
+
+  postgres:
+    image: "postgres:{{ postgres_version }}"
+    restart: unless-stopped
+    volumes:
+      - "{{ storage_dir }}/postgres:/var/lib/postgresql/data"
+      - "{{ app_dir }}/postgres/postgresql.conf:/etc/postgresql/postgresql.conf"
+    environment:
+      - POSTGRES_DB={{ postgres_db }}
+      - POSTGRES_USER={{ vault_postgres_app_user }}
+      - POSTGRES_PASSWORD={{ vault_postgres_app_password }}
+      - POSTGRES_READONLY_USER={{ vault_postgres_readonly_user }}
+      - POSTGRES_READONLY_PASSWORD={{ vault_postgres_readonly_password }}
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "{{ vault_postgres_app_user }}", "-d", "{{ postgres_db }}"]
+      interval: {{ app_healthcheck_interval }}
+      timeout: {{ app_healthcheck_timeout }}
+      retries: {{ app_healthcheck_retries }}
+
+  redis:
+    image: "redis:{{ redis_version }}"
+    restart: unless-stopped
+    volumes:
+      - "{{ storage_dir }}/redis:/data"
+      - "{{ app_dir }}/redis/redis.conf:/etc/redis/redis.conf"
+    command: redis-server /etc/redis/redis.conf
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: {{ app_healthcheck_interval }}
+      timeout: {{ app_healthcheck_timeout }}
+      retries: {{ app_healthcheck_retries }}

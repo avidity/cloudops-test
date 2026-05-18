@@ -1,0 +1,12 @@
+port {{ redis_port }}
+maxmemory {{ redis_maxmemory }}
+maxmemory-policy {{ redis_maxmemory_policy }}
+
+# Disk persistence
+appendonly yes
+appendfsync everysec
+dir /data
+
+{% for interval in redis_save_intervals %}
+save {{ interval }}
+{% endfor %}

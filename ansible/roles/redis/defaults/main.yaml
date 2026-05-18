@@ -1,0 +1,18 @@
+---
+redis_port: 6379
+redis_maxmemory: "256mb"
+redis_maxmemory_policy: "allkeys-lru"
+redis_save_intervals:
+  - "3600 1"
+  - "300 100"
+  - "60 10000"
+
+# Hardcap on memory
+# allkeys-lru means evict least-recently used
+
+#Redis has interesting save_parameters
+# is what we use for persistence
+# = if more things happen, save more often
+# 1st is save after 1 hour if 1 key changed
+# 2nd is save after 5 min if 100 keys changed
+# 3rd is save after 1 min if 10000 keys changed idk

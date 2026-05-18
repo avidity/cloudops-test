@@ -1,0 +1,15 @@
+[Unit]
+Description=Reload application stack
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User={{ deploy_user }}
+WorkingDirectory={{ app_dir }}
+ExecStart=/usr/bin/docker compose pull
+ExecStart=/usr/bin/docker compose up -d --remove-orphans
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

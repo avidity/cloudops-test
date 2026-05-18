@@ -1,0 +1,7 @@
+---
+- name: Restart redis
+  community.docker.docker_compose_v2:
+    project_src: "{{ app_dir }}"
+    services:
+      - redis
+    state: restarted
