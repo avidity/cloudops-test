@@ -1,0 +1,36 @@
+---
+- name: Ensure backup and scripts directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_group }}"
+    mode: "0755"
+  loop:
+    - "{{ backup_dir }}"
+    - "{{ app_dir }}/scripts"
+
+- name: Deploy backup script
+  ansible.builtin.template:
+    src: backup.sh.j2
+    dest: "{{ app_dir }}/scripts/backup.sh"
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_group }}"
+    mode: "0755"
+
+# S3 depepndency for script
+- name: Add awscli
+  ansible.builtin.apt:
+    name: awscli
+    state: present
+
+- name: Schedule hourly backup via cron
+  ansible.builtin.cron:
+    name: "postgres backup"
+    job: "{{ app_dir }}/scripts/backup.sh"
+    user: "{{ deploy_user }}"
+    minute: "0"
+    hour: "*"
+    day: "*"
+    month: "*"
+    weekday: "*"

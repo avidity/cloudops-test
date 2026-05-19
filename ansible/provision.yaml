@@ -1,0 +1,15 @@
+---
+- name: Provision application host
+  hosts: webservers
+  become: true
+  
+  # role order matters
+  roles:
+    - common
+    - users
+    - docker
+    - postgres
+    - redis
+    - app
+    - nginx
+    - backup

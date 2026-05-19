@@ -1,0 +1,25 @@
+#!/bin/bash
+set -euo pipefail
+
+# since runs every hour, it should stamp with hour
+DATE=$(date +%Y%m%d_%H)
+BACKUP_FILE="{{ backup_dir }}/postgres_${DATE}.sql.gz"
+
+echo "Starting backup at ${DATE}"
+
+# pg_dumpall exports the entire postgres instance apparently
+# piped directly into gzip no files touches disk.
+docker exec postgres pg_dumpall -U {{ vault_postgres_app_user }} \
+  | gzip > "${BACKUP_FILE}"
+
+# Upload to S3 storage
+AWS_ACCESS_KEY_ID={{ vault_s3_access_key }} \
+AWS_SECRET_ACCESS_KEY={{ vault_s3_secret_key }} \
+aws s3 cp "${BACKUP_FILE}" {{ backup_s3_bucket }}/ \
+  --endpoint-url {{ vault_s3_endpoint }}
+
+# purge local backups older than retention period to not fill disk
+find {{ backup_dir }} -name "*.sql.gz" \
+  -mtime +{{ backup_retention_days }} -delete
+
+echo "Backup complete: ${BACKUP_FILE}"
