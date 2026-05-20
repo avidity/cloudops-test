@@ -23,4 +23,3 @@
       ansible.builtin.systemd:
         name: app-reload
         state: restarted
-
