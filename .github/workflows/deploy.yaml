@@ -1,0 +1,67 @@
+---
+name: Deploy
+
+# NOTE: this is a demonstration workflow
+# DEPLOY_SSH_PRIVATE_KEY and VAULT_PASSWORD would be in GH secrets in a proper environment
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy-staging:
+    runs-on: ubuntu-latest
+    environment: staging
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install ansible
+        run: |
+          pip install ansible
+
+      - name: Write deploy private key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+      - name: Write vault password
+        run: |
+          echo "${{ secrets.VAULT_PASSWORD }}" > ~/.vault_pass
+          chmod 600 ~/.vault_pass
+
+      - name: Run deploy playbook against staging
+        run: |
+          ansible-playbook ansible/deploy.yaml \
+            -i ansible/inventories/staging/hosts.yaml
+
+  deploy-production:
+    runs-on: ubuntu-latest
+    environment: production
+    needs: deploy-staging
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install ansible
+        run: |
+          pip install ansible
+
+      - name: Write deploy private key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+      - name: Write vault password
+        run: |
+          echo "${{ secrets.VAULT_PASSWORD }}" > ~/.vault_pass
+          chmod 600 ~/.vault_pass
+
+      - name: Run deploy playbook against production
+        run: |
+          ansible-playbook ansible/deploy.yaml \
+            -i ansible/inventories/production/hosts.yaml
