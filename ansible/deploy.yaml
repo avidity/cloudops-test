@@ -2,7 +2,6 @@
 - name: Deploy application update
   hosts: webservers
   become: true
-
   vars:
     app_image_tag: "{{ app_image_tag | default('latest') }}"
 

@@ -2,7 +2,6 @@
 - name: Provision application host
   hosts: webservers
   become: true
-
   roles:
     - common
     - users
