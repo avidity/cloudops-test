@@ -1,7 +1,7 @@
 ---
-# should be encrypted with 
-# ansible-vault encrypt 
- 
+# should be encrypted with
+# ansible-vault encrypt
+
 # Postgres credentials
 vault_postgres_app_user: appuser
 vault_postgres_app_password: CHANGEME_app_password

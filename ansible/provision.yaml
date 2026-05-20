@@ -2,7 +2,7 @@
 - name: Provision application host
   hosts: webservers
   become: true
-  
+
   # role order matters
   roles:
     - common
@@ -13,3 +13,4 @@
     - app
     - nginx
     - backup
+

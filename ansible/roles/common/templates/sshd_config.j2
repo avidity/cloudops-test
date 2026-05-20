@@ -1,6 +1,6 @@
-PermitRootLogin {{ sshd_permit_root_login }}
-PasswordAuthentication {{ sshd_password_authentication }}
-PubkeyAuthentication {{ sshd_pubkey_authentication }}
+PermitRootLogin {{ common_sshd_permit_root_login }}
+PasswordAuthentication {{ common_sshd_password_authentication }}
+PubkeyAuthentication {{ common_sshd_pubkey_authentication }}
 AuthorizedKeysFile .ssh/authorized_keys
 ChallengeResponseAuthentication no
 UsePAM yes
