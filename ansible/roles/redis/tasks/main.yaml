@@ -1,0 +1,17 @@
+---
+- name: Create redis data directory
+  ansible.builtin.file:
+    path: "{{ storage_dir }}/redis"
+    state: directory
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_group }}"
+    mode: "0755"
+
+- name: Deploy redis.conf
+  ansible.builtin.template:
+    src: redis.conf.j2
+    dest: "{{ app_dir }}/redis/redis.conf"
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_group }}"
+    mode: "0644"
+  notify: Restart redis

@@ -1,0 +1,25 @@
+---
+- name: Deploy application update
+  hosts: webservers
+  become: true
+  vars:
+    app_image_tag: "{{ app_image_tag | default('latest') }}"
+  tasks:
+    - name: Pull latest app image
+      community.docker.docker_image:
+        name: "app:{{ app_image_tag }}"
+        source: pull
+        state: present
+    - name: Run database migrations
+      community.docker.docker_container:
+        name: migrate
+        image: "app:{{ app_image_tag }}"
+        command: "python manage.py migrate"
+        detach: false
+        cleanup: true
+        networks:
+          - name: "{{ app_dir | basename }}_default"
+    - name: Reload app stack
+      ansible.builtin.systemd:
+        name: app-reload
+        state: restarted

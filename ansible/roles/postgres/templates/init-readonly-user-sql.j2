@@ -1,0 +1,5 @@
+CREATE USER {{ vault_postgres_readonly_user }} WITH PASSWORD '{{ vault_postgres_readonly_password }}';
+GRANT CONNECT ON DATABASE {{ postgres_db }} TO {{ vault_postgres_readonly_user }};
+GRANT USAGE ON SCHEMA public TO {{ vault_postgres_readonly_user }};
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO {{ vault_postgres_readonly_user }};
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO {{ vault_postgres_readonly_user }};

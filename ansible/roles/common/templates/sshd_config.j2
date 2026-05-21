@@ -1,0 +1,9 @@
+PermitRootLogin {{ common_sshd_permit_root_login }}
+PasswordAuthentication {{ common_sshd_password_authentication }}
+PubkeyAuthentication {{ common_sshd_pubkey_authentication }}
+AuthorizedKeysFile .ssh/authorized_keys
+ChallengeResponseAuthentication no
+UsePAM yes
+X11Forwarding no
+PrintMotd no
+AcceptEnv LANG LC_*

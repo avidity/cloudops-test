@@ -1,0 +1,25 @@
+---
+- name: Create postgres data directory
+  ansible.builtin.file:
+    path: "{{ storage_dir }}/postgres"
+    state: directory
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_group }}"
+    mode: "0755"
+
+- name: Deploy readonly user init script
+  ansible.builtin.template:
+    src: init-readonly-user.sql.j2
+    dest: "{{ app_dir }}/postgres/init-readonly-user.sql"
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_group }}"
+    mode: "0644"
+
+- name: Deploy postgresql.conf
+  ansible.builtin.template:
+    src: postgresql.conf.j2
+    dest: "{{ app_dir }}/postgres/postgresql.conf"
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_group }}"
+    mode: "0644"
+  notify: Restart postgres

@@ -1,0 +1,19 @@
+---
+# should be encrypted with
+# ansible-vault encrypt
+
+# Postgres credentials
+vault_postgres_app_user: appuser
+vault_postgres_app_password: CHANGEME_app_password
+vault_postgres_readonly_user: appuser_ro
+vault_postgres_readonly_password: CHANGEME_readonly_password
+vault_postgres_root_password: CHANGEME_root_password
+
+# S3 credentials
+vault_s3_access_key: CHANGEME_s3_access_key
+vault_s3_secret_key: CHANGEME_s3_secret_key
+vault_s3_endpoint: https://s3.example.com
+
+# SSH deploy public key - added to authorized_keys on the host
+# Private key lives on the operator's machine at ~/.ssh/deploy_key
+vault_deploy_ssh_public_key: "ssh-ed25519 CHANGEME deploy@example.com"

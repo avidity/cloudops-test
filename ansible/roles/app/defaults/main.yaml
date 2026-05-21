@@ -1,0 +1,5 @@
+---
+app_image_tag: latest
+app_healthcheck_interval: "30s"
+app_healthcheck_timeout: "10s"
+app_healthcheck_retries: 3

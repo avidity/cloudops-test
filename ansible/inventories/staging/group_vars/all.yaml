@@ -1,0 +1,5 @@
+---
+env: staging
+app_domain: staging.example.com
+app_image_tag: latest
+backup_s3_bucket: s3://staging-backups/postgres

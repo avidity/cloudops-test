@@ -1,0 +1,51 @@
+---
+- name: Ensure app directory exists
+  ansible.builtin.file:
+    path: "{{ app_dir }}"
+    state: directory
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_group }}"
+    mode: "0755"
+
+- name: Ensure storage directories exist
+  ansible.builtin.file:
+    path: "{{ storage_dir }}/{{ item }}"
+    state: directory
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_group }}"
+    mode: "0755"
+  loop:
+    - postgres
+    - redis
+    - app
+
+- name: Deploy docker-compose.yaml
+  ansible.builtin.template:
+    src: docker-compose.yaml.j2
+    dest: "{{ app_dir }}/docker-compose.yaml"
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_group }}"
+    mode: "0644"
+  notify: Reload app
+
+- name: Deploy systemd reload service
+  ansible.builtin.template:
+    src: app-reload.service.j2
+    dest: /etc/systemd/system/app-reload.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload systemd
+
+- name: Make latest app image
+  community.docker.docker_image:
+    name: "app:{{ app_image_tag }}"
+    source: build
+    build:
+      path: "{{ app_dir }}"
+    state: present
+
+- name: Start app stack with compose
+  community.docker.docker_compose_v2:
+    project_src: "{{ app_dir }}"
+    state: present

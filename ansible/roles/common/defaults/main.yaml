@@ -1,0 +1,4 @@
+---
+common_sshd_permit_root_login: "no"
+common_sshd_password_authentication: "no"
+common_sshd_pubkey_authentication: "yes"

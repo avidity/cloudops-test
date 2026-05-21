@@ -1,0 +1,8 @@
+---
+postgres_port: 5432
+postgres_max_connections: 100
+postgres_shared_buffers: "256MB"
+postgres_work_mem: "4MB"
+postgres_maintenance_work_mem: "64MB"
+postgres_wal_level: replica
+postgres_log_min_duration: 1000  # log queries slower than 1s
